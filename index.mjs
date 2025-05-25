@@ -321,14 +321,14 @@ export class SelfContainedClient {
    * Register a resource
    * @overload
    * @param {string} name - Resource name
-   * @param {ResourceTemplate} uriTemplate - URI template for matching
+   * @param {string | ResourceTemplate} uriTemplate - URI template pattern or ResourceTemplate instance
    * @param {ResourceHandler} handler - Resource handler function
    * @returns {void}
    */
   /**
    * @overload
    * @param {string} name - Resource name
-   * @param {ResourceTemplate} uriTemplate - URI template for matching
+   * @param {string | ResourceTemplate} uriTemplate - URI template pattern or ResourceTemplate instance
    * @param {{ description?: string; mimeType?: string }} options - Resource options
    * @param {ResourceHandler} handler - Resource handler function
    * @returns {void}
@@ -336,7 +336,7 @@ export class SelfContainedClient {
   /**
    * @overload
    * @param {string} name - Resource name
-   * @param {ResourceTemplate} uriTemplate - URI template for matching
+   * @param {string | ResourceTemplate} uriTemplate - URI template pattern or ResourceTemplate instance
    * @param {import('zod').ZodSchema} schema - Validation schema
    * @param {ResourceHandler} handler - Resource handler function
    * @returns {void}
@@ -344,14 +344,17 @@ export class SelfContainedClient {
   /**
    * @overload
    * @param {string} name - Resource name
-   * @param {ResourceTemplate} uriTemplate - URI template for matching
+   * @param {string | ResourceTemplate} uriTemplate - URI template pattern or ResourceTemplate instance
    * @param {{ description?: string; mimeType?: string; schema?: import('zod').ZodSchema }} options - Resource options with schema
    * @param {ResourceHandler} handler - Resource handler function
    * @returns {void}
    */
   resource(name, uriTemplate, optionsOrSchemaOrHandler, handler) {
     const entry = normalizeEntry(name, optionsOrSchemaOrHandler, handler);
-    entry.uriTemplate = uriTemplate;
+    // Convert string patterns to ResourceTemplate instances
+    entry.uriTemplate = typeof uriTemplate === 'string' 
+      ? new ResourceTemplate(uriTemplate)
+      : uriTemplate;
     this.resources.set(name, entry);
   }
 
