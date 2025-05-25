@@ -37,3 +37,11 @@ The `SelfContainedClient` class provides:
 - Async/streaming support for tool outputs
 
 The `ResourceTemplate` class handles URI pattern matching and parameter extraction for resource handlers.
+
+### Recent Improvements
+
+- **Shared Registration Logic**: All registration methods (`tool`, `prompt`, `resource`) use a common `normalizeEntry` helper to reduce code duplication
+- **Consistent Result Validation**: Dedicated validation functions ensure all handlers return properly formatted results
+- **Schema Introspection**: Avoids using Zod's internal `_def` property, instead checking for `toJSON()` method or returning a minimal schema indicator
+- **URI Encoding Options**: ResourceTemplate's `fill()` method now supports an optional `preserveSlashes` parameter for cases where slashes should be preserved in parameter values
+- **Enhanced Error Handling**: All validation errors provide clear, consistent error messages

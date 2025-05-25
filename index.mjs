@@ -14,6 +14,78 @@
  * @typedef {import('./types').ToolResult} ToolResult
  */
 
+// Helper to normalize registration entries
+const normalizeEntry = (name, optionsOrSchemaOrHandler, handler) => {
+  const entry = { name, handler: null };
+  
+  if (typeof optionsOrSchemaOrHandler === 'function') {
+    // Direct handler
+    entry.handler = optionsOrSchemaOrHandler;
+  } else if (handler) {
+    // Options/schema + handler
+    entry.handler = handler;
+    if (optionsOrSchemaOrHandler && typeof optionsOrSchemaOrHandler.parse === 'function') {
+      // It's a Zod schema
+      entry.schema = optionsOrSchemaOrHandler;
+    } else if (optionsOrSchemaOrHandler) {
+      // It's options
+      Object.assign(entry, optionsOrSchemaOrHandler);
+    }
+  }
+  
+  return entry;
+};
+
+// Helper to validate tool results
+const validateToolResult = (result) => {
+  if (!result || typeof result !== 'object') {
+    throw new Error('Tool must return an object');
+  }
+  if (!Array.isArray(result.content)) {
+    throw new Error('Tool must return { content: Content[] }');
+  }
+  return result;
+};
+
+// Helper to validate prompt results
+const validatePromptResult = (result) => {
+  if (!result || typeof result !== 'object') {
+    throw new Error('Prompt handler must return an object');
+  }
+  if (!Array.isArray(result.messages)) {
+    throw new Error('Prompt handler must return { messages: PromptMessage[] }');
+  }
+  return result;
+};
+
+// Helper to validate resource results
+const validateResourceResult = (result) => {
+  if (!result || typeof result !== 'object') {
+    throw new Error('Resource handler must return an object');
+  }
+  if (!Array.isArray(result.contents)) {
+    throw new Error('Resource handler must return { contents: ResourceContents[] }');
+  }
+  return result;
+};
+
+// Helper to get JSON schema from Zod schema
+const getJsonSchema = (zodSchema) => {
+  if (!zodSchema) return undefined;
+  
+  // Try to use built-in JSON schema generation if available
+  if (typeof zodSchema.toJSON === 'function') {
+    return zodSchema.toJSON();
+  }
+  
+  // Fallback: return a minimal schema indicator
+  // This avoids using internal _def property
+  return {
+    type: 'object',
+    zodSchema: true // Indicator that this is a Zod schema
+  };
+};
+
 export class ResourceTemplate {
   /**
    * @param {string} pattern - URI pattern with placeholders like {key}
@@ -45,12 +117,16 @@ export class ResourceTemplate {
   /**
    * Fill the template with parameters to create a URL
    * @param {Record<string, string>} params - Parameters to fill the template
+   * @param {boolean} [preserveSlashes=false] - Whether to preserve slashes in parameter values
    * @returns {URL} - The filled URL
    */
-  fill(params) {
+  fill(params, preserveSlashes = false) {
     let filled = this.pattern;
     for (const key of this.keys) {
-      filled = filled.replace(`{${key}}`, encodeURIComponent(params[key]));
+      const value = encodeURIComponent(params[key]);
+      // Optionally preserve slashes if needed
+      const encoded = preserveSlashes ? value.replace(/%2F/g, '/') : value;
+      filled = filled.replace(`{${key}}`, encoded);
     }
     return new URL(filled);
   }
@@ -103,25 +179,7 @@ export class SelfContainedClient {
    * @returns {void}
    */
   tool(name, optionsOrSchemaOrHandler, handler) {
-    /** @type {ToolEntry} */
-    let entry = { name, handler: null };
-
-    if (typeof optionsOrSchemaOrHandler === 'function') {
-      // tool(name, handler)
-      entry.handler = optionsOrSchemaOrHandler;
-    } else if (handler) {
-      // tool(name, options/schema, handler)
-      entry.handler = handler;
-      if (optionsOrSchemaOrHandler.parse) {
-        // It's a Zod schema
-        entry.schema = optionsOrSchemaOrHandler;
-      } else {
-        // It's options
-        entry.description = optionsOrSchemaOrHandler.description;
-        entry.schema = optionsOrSchemaOrHandler.schema;
-      }
-    }
-
+    const entry = normalizeEntry(name, optionsOrSchemaOrHandler, handler);
     this.tools.set(name, entry);
   }
 
@@ -154,26 +212,7 @@ export class SelfContainedClient {
    * @returns {void}
    */
   prompt(name, optionsOrSchemaOrHandler, handler) {
-    /** @type {PromptEntry} */
-    let entry = { name, handler: null };
-
-    if (typeof optionsOrSchemaOrHandler === 'function') {
-      // prompt(name, handler)
-      entry.handler = optionsOrSchemaOrHandler;
-    } else if (handler) {
-      // prompt(name, options/schema, handler)
-      entry.handler = handler;
-      if (optionsOrSchemaOrHandler.parse) {
-        // It's a Zod schema
-        entry.schema = optionsOrSchemaOrHandler;
-      } else {
-        // It's options
-        entry.description = optionsOrSchemaOrHandler.description;
-        entry.schema = optionsOrSchemaOrHandler.schema;
-        entry.arguments = optionsOrSchemaOrHandler.arguments;
-      }
-    }
-
+    const entry = normalizeEntry(name, optionsOrSchemaOrHandler, handler);
     this.prompts.set(name, entry);
   }
 
@@ -210,26 +249,8 @@ export class SelfContainedClient {
    * @returns {void}
    */
   resource(name, uriTemplate, optionsOrSchemaOrHandler, handler) {
-    /** @type {ResourceEntry} */
-    let entry = { name, uriTemplate, handler: null };
-
-    if (typeof optionsOrSchemaOrHandler === 'function') {
-      // resource(name, template, handler)
-      entry.handler = optionsOrSchemaOrHandler;
-    } else if (handler) {
-      // resource(name, template, options/schema, handler)
-      entry.handler = handler;
-      if (optionsOrSchemaOrHandler.parse) {
-        // It's a Zod schema
-        entry.schema = optionsOrSchemaOrHandler;
-      } else {
-        // It's options
-        entry.description = optionsOrSchemaOrHandler.description;
-        entry.mimeType = optionsOrSchemaOrHandler.mimeType;
-        entry.schema = optionsOrSchemaOrHandler.schema;
-      }
-    }
-
+    const entry = normalizeEntry(name, optionsOrSchemaOrHandler, handler);
+    entry.uriTemplate = uriTemplate;
     this.resources.set(name, entry);
   }
 
@@ -247,8 +268,9 @@ export class SelfContainedClient {
       };
       if (t.description) tool.description = t.description;
       if (t.schema) {
-        // Convert Zod schema to JSON schema if possible
-        tool.inputSchema = t.schema._def || {};
+        tool.inputSchema = getJsonSchema(t.schema);
+      } else if (t.inputSchema) {
+        tool.inputSchema = t.inputSchema;
       }
       return tool;
     });
@@ -337,12 +359,8 @@ export class SelfContainedClient {
         return { content };
       }
       
-      // Ensure result has correct format
-      if (!result || !Array.isArray(result.content)) {
-        throw new Error('Tool must return { content: Content[] }');
-      }
-      
-      return result;
+      // Validate and return result
+      return validateToolResult(result);
     } catch (error) {
       // Return error as result
       return {
@@ -372,12 +390,8 @@ export class SelfContainedClient {
         
         const result = await entry.handler(url, params);
         
-        // Ensure result has correct format
-        if (!result || !Array.isArray(result.contents)) {
-          throw new Error('Resource handler must return { contents: ResourceContents[] }');
-        }
-        
-        return result;
+        // Validate and return result
+        return validateResourceResult(result);
       }
     }
     throw new Error(`No resource matches URI: ${uri}`);
@@ -399,10 +413,8 @@ export class SelfContainedClient {
     
     const result = entry.handler(args);
     
-    // Ensure result has correct format
-    if (!result || !Array.isArray(result.messages)) {
-      throw new Error('Prompt handler must return { messages: PromptMessage[] }');
-    }
+    // Validate result
+    validatePromptResult(result);
     
     // Add description if available
     if (entry.description && !result.description) {
