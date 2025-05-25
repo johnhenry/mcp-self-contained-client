@@ -54,7 +54,10 @@ export type ReadResourceResult = {
   contents: ResourceContents[];
 };
 
-export type ResourceHandler = (uri: URL, params: any) => Promise<ReadResourceResult> | ReadResourceResult;
+export type ResourceHandler = (
+  uri: URL,
+  params: any
+) => Promise<ReadResourceResult> | ReadResourceResult;
 
 export type ResourceEntry = {
   name: string;
@@ -105,35 +108,58 @@ export declare class ResourceTemplate {
   readonly name?: string;
   readonly description?: string;
   readonly mimeType?: string;
-  
-  constructor(pattern: string, options?: { name?: string; description?: string; mimeType?: string });
+
+  constructor(
+    pattern: string,
+    options?: { name?: string; description?: string; mimeType?: string }
+  );
   match(uri: URL): Record<string, string> | null;
   fill(params: Record<string, string>): URL;
 }
 
 // Declarative configuration types
-export type DeclarativeToolDefinition = 
+export type DeclarativeToolDefinition =
   | [name: string, handler: ToolHandler]
-  | [name: string, schema: Record<string, any> | ZodSchema, handler: ToolHandler]
-  | [name: string, schema: Record<string, any> | ZodSchema, handler: ToolHandler, description: string];
+  | [
+      name: string,
+      schema: Record<string, any> | ZodSchema,
+      handler: ToolHandler
+    ]
+  | [
+      name: string,
+      schema: Record<string, any> | ZodSchema,
+      handler: ToolHandler,
+      description: string
+    ];
 
-export type DeclarativePromptDefinition = 
+export type DeclarativePromptDefinition =
   | [name: string, handler: PromptHandler]
-  | [name: string, schema: Record<string, any> | ZodSchema, handler: PromptHandler]
-  | [name: string, schema: Record<string, any> | ZodSchema, handler: PromptHandler, description: string];
+  | [
+      name: string,
+      schema: Record<string, any> | ZodSchema,
+      handler: PromptHandler
+    ]
+  | [
+      name: string,
+      schema: Record<string, any> | ZodSchema,
+      handler: PromptHandler,
+      description: string
+    ];
 
-export type DeclarativeResourceDefinition = [
-  name: string,
-  uriPattern: string,
-  handler: ResourceHandler,
-  options?: { description?: string; mimeType?: string }
-] | [
-  name: string,
-  uriPattern: string,
-  schema: Record<string, any> | ZodSchema,
-  handler: ResourceHandler,
-  options?: { description?: string; mimeType?: string }
-];
+export type DeclarativeResourceDefinition =
+  | [
+      name: string,
+      uriPattern: string,
+      handler: ResourceHandler,
+      options?: { description?: string; mimeType?: string }
+    ]
+  | [
+      name: string,
+      uriPattern: string,
+      schema: Record<string, any> | ZodSchema,
+      handler: ResourceHandler,
+      options?: { description?: string; mimeType?: string }
+    ];
 
 export type DeclarativeConfig = {
   tools?: DeclarativeToolDefinition[];
@@ -142,32 +168,58 @@ export type DeclarativeConfig = {
 };
 
 // Main client class
-export declare class SelfContainedClient {
+export declare class MCPSelfContainedClient {
   readonly name: string;
   readonly version: string;
-  
-  constructor(options: { name: string; version: string }, declarativeConfig?: DeclarativeConfig);
-  
+
+  constructor(
+    options: { name: string; version: string },
+    declarativeConfig?: DeclarativeConfig
+  );
+
   // Tool methods
   tool(name: string, handler: ToolHandler): void;
-  tool(name: string, options: { description?: string; inputSchema?: Record<string, any> }, handler: ToolHandler): void;
+  tool(
+    name: string,
+    options: { description?: string; inputSchema?: Record<string, any> },
+    handler: ToolHandler
+  ): void;
   tool(name: string, schema: ZodSchema, handler: ToolHandler): void;
-  tool(name: string, options: { description?: string; schema?: ZodSchema }, handler: ToolHandler): void;
-  
+  tool(
+    name: string,
+    options: { description?: string; schema?: ZodSchema },
+    handler: ToolHandler
+  ): void;
+
   listTools(): Promise<{ tools: Tool[] }>;
   callTool(params: { name: string; arguments?: any }): Promise<ToolResult>;
   deleteTool(name: string): void;
-  
+
   // Prompt methods
   prompt(name: string, handler: PromptHandler): void;
-  prompt(name: string, options: { description?: string; arguments?: PromptArgument[] }, handler: PromptHandler): void;
+  prompt(
+    name: string,
+    options: { description?: string; arguments?: PromptArgument[] },
+    handler: PromptHandler
+  ): void;
   prompt(name: string, schema: ZodSchema, handler: PromptHandler): void;
-  prompt(name: string, options: { description?: string; schema?: ZodSchema; arguments?: PromptArgument[] }, handler: PromptHandler): void;
-  
+  prompt(
+    name: string,
+    options: {
+      description?: string;
+      schema?: ZodSchema;
+      arguments?: PromptArgument[];
+    },
+    handler: PromptHandler
+  ): void;
+
   listPrompts(): Promise<{ prompts: Prompt[] }>;
-  getPrompt(params: { name: string; arguments?: any }): Promise<GetPromptResult>;
+  getPrompt(params: {
+    name: string;
+    arguments?: any;
+  }): Promise<GetPromptResult>;
   deletePrompt(name: string): void;
-  
+
   // Resource methods
   resource(
     name: string,
@@ -192,15 +244,22 @@ export declare class SelfContainedClient {
     options: { description?: string; mimeType?: string; schema?: ZodSchema },
     handler: ResourceHandler
   ): void;
-  
+
   listResources(): Promise<{ resources: Resource[] }>;
-  listResourceTemplates(): Promise<{ resourceTemplates: Array<{ uriTemplate: string; name: string; description?: string; mimeType?: string }> }>;
+  listResourceTemplates(): Promise<{
+    resourceTemplates: Array<{
+      uriTemplate: string;
+      name: string;
+      description?: string;
+      mimeType?: string;
+    }>;
+  }>;
   readResource(params: { uri: string }): Promise<ReadResourceResult>;
   deleteResource(name: string): void;
-  
+
   // Namespace deletion
   deleteNamespace(prefix: string): void;
-  
+
   // Server info
   getServerCapabilities(): {
     tools?: {};

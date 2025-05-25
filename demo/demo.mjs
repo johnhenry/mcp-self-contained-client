@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
-import { SelfContainedClient, ResourceTemplate } from "../index.mjs";
+import { MCPSelfContainedClient, ResourceTemplate } from "../index.mjs";
 import { z } from "zod";
 
-console.log("🚀 SelfContainedClient Demo\n");
+console.log("🚀 MCPSelfContainedClient Demo\n");
 
 // Create client with declarative configuration
-const client = new SelfContainedClient(
+const client = new MCPSelfContainedClient(
   {
     name: "demo-client",
     version: "1.0.0",

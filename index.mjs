@@ -17,14 +17,17 @@
 // Helper to normalize registration entries
 const normalizeEntry = (name, optionsOrSchemaOrHandler, handler) => {
   const entry = { name, handler: null };
-  
-  if (typeof optionsOrSchemaOrHandler === 'function') {
+
+  if (typeof optionsOrSchemaOrHandler === "function") {
     // Direct handler
     entry.handler = optionsOrSchemaOrHandler;
   } else if (handler) {
     // Options/schema + handler
     entry.handler = handler;
-    if (optionsOrSchemaOrHandler && typeof optionsOrSchemaOrHandler.parse === 'function') {
+    if (
+      optionsOrSchemaOrHandler &&
+      typeof optionsOrSchemaOrHandler.parse === "function"
+    ) {
       // It's a Zod schema
       entry.schema = optionsOrSchemaOrHandler;
     } else if (optionsOrSchemaOrHandler) {
@@ -32,39 +35,41 @@ const normalizeEntry = (name, optionsOrSchemaOrHandler, handler) => {
       Object.assign(entry, optionsOrSchemaOrHandler);
     }
   }
-  
+
   return entry;
 };
 
 // Helper to validate tool results
 const validateToolResult = (result) => {
-  if (!result || typeof result !== 'object') {
-    throw new Error('Tool must return an object');
+  if (!result || typeof result !== "object") {
+    throw new Error("Tool must return an object");
   }
   if (!Array.isArray(result.content)) {
-    throw new Error('Tool must return { content: Content[] }');
+    throw new Error("Tool must return { content: Content[] }");
   }
   return result;
 };
 
 // Helper to validate prompt results
 const validatePromptResult = (result) => {
-  if (!result || typeof result !== 'object') {
-    throw new Error('Prompt handler must return an object');
+  if (!result || typeof result !== "object") {
+    throw new Error("Prompt handler must return an object");
   }
   if (!Array.isArray(result.messages)) {
-    throw new Error('Prompt handler must return { messages: PromptMessage[] }');
+    throw new Error("Prompt handler must return { messages: PromptMessage[] }");
   }
   return result;
 };
 
 // Helper to validate resource results
 const validateResourceResult = (result) => {
-  if (!result || typeof result !== 'object') {
-    throw new Error('Resource handler must return an object');
+  if (!result || typeof result !== "object") {
+    throw new Error("Resource handler must return an object");
   }
   if (!Array.isArray(result.contents)) {
-    throw new Error('Resource handler must return { contents: ResourceContents[] }');
+    throw new Error(
+      "Resource handler must return { contents: ResourceContents[] }"
+    );
   }
   return result;
 };
@@ -72,17 +77,17 @@ const validateResourceResult = (result) => {
 // Helper to get JSON schema from Zod schema
 const getJsonSchema = (zodSchema) => {
   if (!zodSchema) return undefined;
-  
+
   // Try to use built-in JSON schema generation if available
-  if (typeof zodSchema.toJSON === 'function') {
+  if (typeof zodSchema.toJSON === "function") {
     return zodSchema.toJSON();
   }
-  
+
   // Fallback: return a minimal schema indicator
   // This avoids using internal _def property
   return {
-    type: 'object',
-    zodSchema: true // Indicator that this is a Zod schema
+    type: "object",
+    zodSchema: true, // Indicator that this is a Zod schema
   };
 };
 
@@ -125,14 +130,14 @@ export class ResourceTemplate {
     for (const key of this.keys) {
       const value = encodeURIComponent(params[key]);
       // Optionally preserve slashes if needed
-      const encoded = preserveSlashes ? value.replace(/%2F/g, '/') : value;
+      const encoded = preserveSlashes ? value.replace(/%2F/g, "/") : value;
       filled = filled.replace(`{${key}}`, encoded);
     }
     return new URL(filled);
   }
 }
 
-export class SelfContainedClient {
+export class MCPSelfContainedClient {
   /**
    * @param {{ name: string; version: string }} options - Client configuration
    * @param {import('./types').DeclarativeConfig} [declarativeConfig] - Optional declarative configuration
@@ -143,13 +148,13 @@ export class SelfContainedClient {
 
     /** @type {Map<string, ToolEntry>} */
     this.tools = new Map();
-    
+
     /** @type {Map<string, ResourceEntry>} */
     this.resources = new Map();
-    
+
     /** @type {Map<string, PromptEntry>} */
     this.prompts = new Map();
-    
+
     // Process declarative configuration if provided
     if (declarativeConfig) {
       this._processDeclarativeConfig(declarativeConfig);
@@ -166,7 +171,7 @@ export class SelfContainedClient {
     if (config.tools && Array.isArray(config.tools)) {
       for (const toolDef of config.tools) {
         const [name, ...args] = toolDef;
-        
+
         if (args.length === 1) {
           // [name, handler]
           this.tool(name, args[0]);
@@ -178,8 +183,8 @@ export class SelfContainedClient {
           const schema = args[0];
           const handler = args[1];
           const description = args[2];
-          
-          if (schema && typeof schema === 'object' && !schema.parse) {
+
+          if (schema && typeof schema === "object" && !schema.parse) {
             // Plain object schema, convert to options with description
             this.tool(name, { inputSchema: schema, description }, handler);
           } else {
@@ -189,12 +194,12 @@ export class SelfContainedClient {
         }
       }
     }
-    
+
     // Process prompts
     if (config.prompts && Array.isArray(config.prompts)) {
       for (const promptDef of config.prompts) {
         const [name, ...args] = promptDef;
-        
+
         if (args.length === 1) {
           // [name, handler]
           this.prompt(name, args[0]);
@@ -206,13 +211,13 @@ export class SelfContainedClient {
           const schema = args[0];
           const handler = args[1];
           const description = args[2];
-          
-          if (schema && typeof schema === 'object' && !schema.parse) {
+
+          if (schema && typeof schema === "object" && !schema.parse) {
             // Plain object schema, we'll treat it as arguments definition
             const argNames = Object.keys(schema);
-            const promptArgs = argNames.map(arg => ({
+            const promptArgs = argNames.map((arg) => ({
               name: arg,
-              required: true
+              required: true,
             }));
             this.prompt(name, { arguments: promptArgs, description }, handler);
           } else {
@@ -222,18 +227,18 @@ export class SelfContainedClient {
         }
       }
     }
-    
+
     // Process resources
     if (config.resources && Array.isArray(config.resources)) {
       for (const resourceDef of config.resources) {
         const [name, uriPattern, ...args] = resourceDef;
         const template = new ResourceTemplate(uriPattern);
-        
+
         if (args.length === 1) {
           // [name, uriPattern, handler]
           this.resource(name, template, args[0]);
         } else if (args.length === 2) {
-          if (typeof args[1] === 'function') {
+          if (typeof args[1] === "function") {
             // [name, uriPattern, schema, handler]
             this.resource(name, template, args[0], args[1]);
           } else {
@@ -352,9 +357,10 @@ export class SelfContainedClient {
   resource(name, uriTemplate, optionsOrSchemaOrHandler, handler) {
     const entry = normalizeEntry(name, optionsOrSchemaOrHandler, handler);
     // Convert string patterns to ResourceTemplate instances
-    entry.uriTemplate = typeof uriTemplate === 'string' 
-      ? new ResourceTemplate(uriTemplate)
-      : uriTemplate;
+    entry.uriTemplate =
+      typeof uriTemplate === "string"
+        ? new ResourceTemplate(uriTemplate)
+        : uriTemplate;
     this.resources.set(name, entry);
   }
 
@@ -368,7 +374,7 @@ export class SelfContainedClient {
     const tools = [...this.tools.values()].map((t) => {
       /** @type {Tool} */
       const tool = {
-        name: t.name
+        name: t.name,
       };
       if (t.description) tool.description = t.description;
       if (t.schema) {
@@ -389,7 +395,7 @@ export class SelfContainedClient {
     const prompts = [...this.prompts.values()].map((p) => {
       /** @type {Prompt} */
       const prompt = {
-        name: p.name
+        name: p.name,
       };
       if (p.description) prompt.description = p.description;
       if (p.arguments) prompt.arguments = p.arguments;
@@ -409,7 +415,7 @@ export class SelfContainedClient {
       /** @type {Resource} */
       const resource = {
         uri: entry.uriTemplate.pattern,
-        name: entry.name
+        name: entry.name,
       };
       if (entry.description) resource.description = entry.description;
       if (entry.mimeType) resource.mimeType = entry.mimeType;
@@ -426,7 +432,7 @@ export class SelfContainedClient {
     const resourceTemplates = [...this.resources.values()].map((r) => {
       const template = {
         uriTemplate: r.uriTemplate.pattern,
-        name: r.name
+        name: r.name,
       };
       if (r.description) template.description = r.description;
       if (r.mimeType) template.mimeType = r.mimeType;
@@ -445,7 +451,7 @@ export class SelfContainedClient {
   async callTool({ name, arguments: args = {} }) {
     const entry = this.tools.get(name);
     if (!entry) throw new Error(`Tool '${name}' not found`);
-    
+
     try {
       // Validate arguments if schema exists
       if (entry.schema) {
@@ -453,26 +459,32 @@ export class SelfContainedClient {
       }
 
       const result = await entry.handler(args);
-      
+
       // Handle async iterators
-      if (result && typeof result === 'object' && Symbol.asyncIterator in result) {
+      if (
+        result &&
+        typeof result === "object" &&
+        Symbol.asyncIterator in result
+      ) {
         const content = [];
         for await (const chunk of result) {
           content.push(chunk);
         }
         return { content };
       }
-      
+
       // Validate and return result
       return validateToolResult(result);
     } catch (error) {
       // Return error as result
       return {
-        content: [{
-          type: 'text',
-          text: error.message || 'Tool execution failed'
-        }],
-        isError: true
+        content: [
+          {
+            type: "text",
+            text: error.message || "Tool execution failed",
+          },
+        ],
+        isError: true,
       };
     }
   }
@@ -491,9 +503,9 @@ export class SelfContainedClient {
         if (entry.schema) {
           entry.schema.parse(params);
         }
-        
+
         const result = await entry.handler(url, params);
-        
+
         // Validate and return result
         return validateResourceResult(result);
       }
@@ -509,22 +521,22 @@ export class SelfContainedClient {
   async getPrompt({ name, arguments: args = {} }) {
     const entry = this.prompts.get(name);
     if (!entry) throw new Error(`Prompt '${name}' not found`);
-    
+
     // Validate arguments if schema exists
     if (entry.schema) {
       args = entry.schema.parse(args);
     }
-    
+
     const result = entry.handler(args);
-    
+
     // Validate result
     validatePromptResult(result);
-    
+
     // Add description if available
     if (entry.description && !result.description) {
       result.description = entry.description;
     }
-    
+
     return result;
   }
 
@@ -579,8 +591,8 @@ export class SelfContainedClient {
       tools: {},
       prompts: {},
       resources: {
-        subscribe: false // We don't support subscriptions in this implementation
-      }
+        subscribe: false, // We don't support subscriptions in this implementation
+      },
     };
   }
 }

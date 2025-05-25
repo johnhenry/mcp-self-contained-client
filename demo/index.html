@@ -1,654 +1,909 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SelfContainedClient Visual Demo</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MCPSelfContainedClient Visual Demo</title>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f5f5;
-            color: #333;
-            line-height: 1.6;
-            padding: 20px;
-        }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        background: #f5f5f5;
+        color: #333;
+        line-height: 1.6;
+        padding: 20px;
+      }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
 
-        h1 {
-            text-align: center;
-            color: #2c3e50;
-            margin-bottom: 40px;
-            font-size: 2.5em;
-        }
+      h1 {
+        text-align: center;
+        color: #2c3e50;
+        margin-bottom: 40px;
+        font-size: 2.5em;
+      }
 
-        .demo-section {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
+      .demo-section {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
 
-        .demo-section h2 {
-            color: #34495e;
-            margin-bottom: 15px;
-            font-size: 1.5em;
-            border-bottom: 2px solid #3498db;
-            padding-bottom: 10px;
-        }
+      .demo-section h2 {
+        color: #34495e;
+        margin-bottom: 15px;
+        font-size: 1.5em;
+        border-bottom: 2px solid #3498db;
+        padding-bottom: 10px;
+      }
 
-        .controls {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-        }
+      .controls {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+      }
 
-        input, select, button {
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-        }
+      input,
+      select,
+      button {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+      }
 
-        input:focus, select:focus {
-            outline: none;
-            border-color: #3498db;
-        }
+      input:focus,
+      select:focus {
+        outline: none;
+        border-color: #3498db;
+      }
 
-        button {
-            background: #3498db;
-            color: white;
-            border: none;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
+      button {
+        background: #3498db;
+        color: white;
+        border: none;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
 
-        button:hover {
-            background: #2980b9;
-        }
+      button:hover {
+        background: #2980b9;
+      }
 
-        button:disabled {
-            background: #95a5a6;
-            cursor: not-allowed;
-        }
+      button:disabled {
+        background: #95a5a6;
+        cursor: not-allowed;
+      }
 
-        .output {
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 4px;
-            padding: 15px;
-            margin-top: 15px;
-            font-family: 'Courier New', monospace;
-            white-space: pre-wrap;
-            max-height: 300px;
-            overflow-y: auto;
-        }
+      .output {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 4px;
+        padding: 15px;
+        margin-top: 15px;
+        font-family: "Courier New", monospace;
+        white-space: pre-wrap;
+        max-height: 300px;
+        overflow-y: auto;
+      }
 
-        .output.error {
-            background: #fee;
-            border-color: #fcc;
-            color: #c00;
-        }
+      .output.error {
+        background: #fee;
+        border-color: #fcc;
+        color: #c00;
+      }
 
-        .output.success {
-            background: #efe;
-            border-color: #cfc;
-        }
+      .output.success {
+        background: #efe;
+        border-color: #cfc;
+      }
 
-        .capabilities {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-        }
+      .capabilities {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 15px;
+        margin-top: 15px;
+      }
 
-        .capability-card {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
-            padding: 15px;
-        }
+      .capability-card {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 15px;
+      }
 
-        .capability-card h3 {
-            color: #495057;
-            margin-bottom: 10px;
-            font-size: 1.1em;
-        }
+      .capability-card h3 {
+        color: #495057;
+        margin-bottom: 10px;
+        font-size: 1.1em;
+      }
 
-        .capability-item {
-            padding: 5px 0;
-            border-bottom: 1px solid #e9ecef;
-        }
+      .capability-item {
+        padding: 5px 0;
+        border-bottom: 1px solid #e9ecef;
+      }
 
-        .capability-item:last-child {
-            border-bottom: none;
-        }
+      .capability-item:last-child {
+        border-bottom: none;
+      }
 
-        .capability-name {
-            font-weight: bold;
-            color: #2c3e50;
-        }
+      .capability-name {
+        font-weight: bold;
+        color: #2c3e50;
+      }
 
-        .capability-description {
-            font-size: 0.9em;
-            color: #6c757d;
-        }
+      .capability-description {
+        font-size: 0.9em;
+        color: #6c757d;
+      }
 
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #3498db;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
+      .loading {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
         }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
 
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #dee2e6;
-        }
+      .tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #dee2e6;
+      }
 
-        .tab {
-            padding: 10px 20px;
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            color: #6c757d;
-            transition: all 0.3s;
-        }
+      .tab {
+        padding: 10px 20px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 16px;
+        color: #6c757d;
+        transition: all 0.3s;
+      }
 
-        .tab.active {
-            color: #3498db;
-            border-bottom: 2px solid #3498db;
-            margin-bottom: -2px;
-        }
+      .tab.active {
+        color: #3498db;
+        border-bottom: 2px solid #3498db;
+        margin-bottom: -2px;
+      }
 
-        .tab-content {
-            display: none;
-        }
+      .tab-content {
+        display: none;
+      }
 
-        .tab-content.active {
-            display: block;
-        }
+      .tab-content.active {
+        display: block;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <h1>🚀 SelfContainedClient Visual Demo</h1>
+      <h1>🚀 MCPSelfContainedClient Visual Demo</h1>
 
-        <div class="tabs">
-            <button class="tab active" onclick="switchTab('tools')">🔧 Tools</button>
-            <button class="tab" onclick="switchTab('prompts')">💬 Prompts</button>
-            <button class="tab" onclick="switchTab('resources')">📁 Resources</button>
-            <button class="tab" onclick="switchTab('capabilities')">📋 Capabilities</button>
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('tools')">
+          🔧 Tools
+        </button>
+        <button class="tab" onclick="switchTab('prompts')">💬 Prompts</button>
+        <button class="tab" onclick="switchTab('resources')">
+          📁 Resources
+        </button>
+        <button class="tab" onclick="switchTab('capabilities')">
+          📋 Capabilities
+        </button>
+      </div>
+
+      <!-- Tools Tab -->
+      <div id="tools-tab" class="tab-content active">
+        <div class="demo-section">
+          <h2>🔧 Tool Execution</h2>
+
+          <div class="controls">
+            <select id="tool-select">
+              <option value="">Select a tool...</option>
+            </select>
+            <div id="tool-inputs"></div>
+            <button onclick="executeTool()">Execute Tool</button>
+          </div>
+
+          <div id="tool-output" class="output" style="display: none"></div>
         </div>
 
-        <!-- Tools Tab -->
-        <div id="tools-tab" class="tab-content active">
-            <div class="demo-section">
-                <h2>🔧 Tool Execution</h2>
-                
-                <div class="controls">
-                    <select id="tool-select">
-                        <option value="">Select a tool...</option>
-                    </select>
-                    <div id="tool-inputs"></div>
-                    <button onclick="executeTool()">Execute Tool</button>
-                </div>
-                
-                <div id="tool-output" class="output" style="display: none;"></div>
-            </div>
+        <div class="demo-section">
+          <h2>➕ Add Custom Tool</h2>
 
-            <div class="demo-section">
-                <h2>➕ Add Custom Tool</h2>
-                
-                <div class="controls">
-                    <input type="text" id="custom-tool-name" placeholder="Tool name">
-                    <input type="text" id="custom-tool-description" placeholder="Description (optional)">
-                    <button onclick="addCustomTool()">Add Tool</button>
-                </div>
-                
-                <div style="margin-top: 10px;">
-                    <textarea id="custom-tool-schema" placeholder="Input schema (e.g., { name: 'string', age: 'number' })" 
-                        style="width: 100%; height: 60px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;"></textarea>
-                </div>
-                
-                <div style="margin-top: 10px;">
-                    <textarea id="custom-tool-handler" placeholder="Handler function (e.g., ({ name, age }) => ({ content: [{ type: 'text', text: `Hello ${name}, you are ${age} years old` }] }))" 
-                        style="width: 100%; height: 100px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;"></textarea>
-                </div>
-            </div>
+          <div class="controls">
+            <input type="text" id="custom-tool-name" placeholder="Tool name" />
+            <input
+              type="text"
+              id="custom-tool-description"
+              placeholder="Description (optional)"
+            />
+            <button onclick="addCustomTool()">Add Tool</button>
+          </div>
+
+          <div style="margin-top: 10px">
+            <textarea
+              id="custom-tool-schema"
+              placeholder="Input schema (e.g., { name: 'string', age: 'number' })"
+              style="
+                width: 100%;
+                height: 60px;
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-family: monospace;
+              "
+            ></textarea>
+          </div>
+
+          <div style="margin-top: 10px">
+            <textarea
+              id="custom-tool-handler"
+              placeholder="Handler function (e.g., ({ name, age }) => ({ content: [{ type: 'text', text: `Hello ${name}, you are ${age} years old` }] }))"
+              style="
+                width: 100%;
+                height: 100px;
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-family: monospace;
+              "
+            ></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Prompts Tab -->
+      <div id="prompts-tab" class="tab-content">
+        <div class="demo-section">
+          <h2>💬 Prompt Generation</h2>
+
+          <div class="controls">
+            <select id="prompt-select">
+              <option value="">Select a prompt...</option>
+            </select>
+            <div id="prompt-inputs"></div>
+            <button onclick="generatePrompt()">Generate Prompt</button>
+          </div>
+
+          <div id="prompt-output" class="output" style="display: none"></div>
         </div>
 
-        <!-- Prompts Tab -->
-        <div id="prompts-tab" class="tab-content">
-            <div class="demo-section">
-                <h2>💬 Prompt Generation</h2>
-                
-                <div class="controls">
-                    <select id="prompt-select">
-                        <option value="">Select a prompt...</option>
-                    </select>
-                    <div id="prompt-inputs"></div>
-                    <button onclick="generatePrompt()">Generate Prompt</button>
-                </div>
-                
-                <div id="prompt-output" class="output" style="display: none;"></div>
+        <div class="demo-section">
+          <h2>➕ Add Custom Prompt</h2>
+
+          <div class="controls">
+            <input
+              type="text"
+              id="custom-prompt-name"
+              placeholder="Prompt name"
+            />
+            <input
+              type="text"
+              id="custom-prompt-description"
+              placeholder="Description (optional)"
+            />
+            <button onclick="addCustomPrompt()">Add Prompt</button>
+          </div>
+
+          <div style="margin-top: 10px">
+            <textarea
+              id="custom-prompt-schema"
+              placeholder="Argument schema (e.g., { topic: 'string', style: 'string' })"
+              style="
+                width: 100%;
+                height: 60px;
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-family: monospace;
+              "
+            ></textarea>
+          </div>
+
+          <div style="margin-top: 10px">
+            <textarea
+              id="custom-prompt-handler"
+              placeholder="Handler function (e.g., ({ topic, style }) => ({ messages: [{ role: 'user', content: { type: 'text', text: `Write about ${topic} in ${style} style` } }] }))"
+              style="
+                width: 100%;
+                height: 100px;
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-family: monospace;
+              "
+            ></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resources Tab -->
+      <div id="resources-tab" class="tab-content">
+        <div class="demo-section">
+          <h2>📁 Resource Access</h2>
+
+          <div class="controls">
+            <input
+              type="text"
+              id="resource-uri"
+              placeholder="Enter resource URI (e.g., docs://intro)"
+              style="width: 300px"
+            />
+            <button onclick="readResource()">Read Resource</button>
+          </div>
+
+          <div style="margin-top: 15px">
+            <h3 style="font-size: 1.1em; margin-bottom: 10px">
+              Available Resources & Example URIs:
+            </h3>
+            <div
+              id="resource-examples"
+              style="
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+                gap: 10px;
+              "
+            >
+              <!-- Will be populated dynamically -->
             </div>
-            
-            <div class="demo-section">
-                <h2>➕ Add Custom Prompt</h2>
-                
-                <div class="controls">
-                    <input type="text" id="custom-prompt-name" placeholder="Prompt name">
-                    <input type="text" id="custom-prompt-description" placeholder="Description (optional)">
-                    <button onclick="addCustomPrompt()">Add Prompt</button>
-                </div>
-                
-                <div style="margin-top: 10px;">
-                    <textarea id="custom-prompt-schema" placeholder="Argument schema (e.g., { topic: 'string', style: 'string' })" 
-                        style="width: 100%; height: 60px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;"></textarea>
-                </div>
-                
-                <div style="margin-top: 10px;">
-                    <textarea id="custom-prompt-handler" placeholder="Handler function (e.g., ({ topic, style }) => ({ messages: [{ role: 'user', content: { type: 'text', text: `Write about ${topic} in ${style} style` } }] }))" 
-                        style="width: 100%; height: 100px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;"></textarea>
-                </div>
-            </div>
+          </div>
+
+          <div
+            id="resource-output"
+            class="output"
+            style="display: none; margin-top: 20px"
+          ></div>
         </div>
 
-        <!-- Resources Tab -->
-        <div id="resources-tab" class="tab-content">
-            <div class="demo-section">
-                <h2>📁 Resource Access</h2>
-                
-                <div class="controls">
-                    <input type="text" id="resource-uri" placeholder="Enter resource URI (e.g., docs://intro)" style="width: 300px;">
-                    <button onclick="readResource()">Read Resource</button>
-                </div>
-                
-                <div style="margin-top: 15px;">
-                    <h3 style="font-size: 1.1em; margin-bottom: 10px;">Available Resources & Example URIs:</h3>
-                    <div id="resource-examples" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px;">
-                        <!-- Will be populated dynamically -->
-                    </div>
-                </div>
-                
-                <div id="resource-output" class="output" style="display: none; margin-top: 20px;"></div>
-            </div>
-            
-            <div class="demo-section">
-                <h2>➕ Add Custom Resource</h2>
-                
-                <div class="controls">
-                    <input type="text" id="custom-resource-name" placeholder="Resource name">
-                    <input type="text" id="custom-resource-pattern" placeholder="URI pattern (e.g., custom://{id})">
-                    <input type="text" id="custom-resource-description" placeholder="Description (optional)">
-                    <select id="custom-resource-mime">
-                        <option value="">Default (text/plain)</option>
-                        <option value="text/markdown">text/markdown</option>
-                        <option value="application/json">application/json</option>
-                        <option value="text/html">text/html</option>
-                    </select>
-                    <button onclick="addCustomResource()">Add Resource</button>
-                </div>
-                
-                <div style="margin-top: 10px;">
-                    <textarea id="custom-resource-handler" placeholder="Handler function (e.g., async (uri, { id }) => ({ contents: [{ uri: uri.href, text: `Content for ${id}` }] }))" 
-                        style="width: 100%; height: 100px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;"></textarea>
-                </div>
-            </div>
-            
-            <div class="demo-section">
-                <h2>🧪 ResourceTemplate Testing</h2>
-                
-                <div class="controls">
-                    <input type="text" id="template-pattern" placeholder="Template pattern (e.g., user://{userId}/posts/{postId})" style="width: 300px;">
-                    <button onclick="testResourceTemplate()">Test Template</button>
-                </div>
-                
-                <div class="controls" style="margin-top: 10px;">
-                    <input type="text" id="test-uri" placeholder="Test URI to match (e.g., user://123/posts/456)" style="width: 300px;">
-                    <button onclick="testTemplateMatch()">Test Match</button>
-                </div>
-                
-                <div class="controls" style="margin-top: 10px;">
-                    <input type="text" id="fill-params" placeholder='Parameters JSON (e.g., {"userId": "789", "postId": "abc"})' style="width: 300px;">
-                    <label><input type="checkbox" id="preserve-slashes"> Preserve slashes</label>
-                    <button onclick="testTemplateFill()">Test Fill</button>
-                </div>
-                
-                <div id="template-output" class="output" style="display: none; margin-top: 15px;"></div>
-            </div>
+        <div class="demo-section">
+          <h2>➕ Add Custom Resource</h2>
+
+          <div class="controls">
+            <input
+              type="text"
+              id="custom-resource-name"
+              placeholder="Resource name"
+            />
+            <input
+              type="text"
+              id="custom-resource-pattern"
+              placeholder="URI pattern (e.g., custom://{id})"
+            />
+            <input
+              type="text"
+              id="custom-resource-description"
+              placeholder="Description (optional)"
+            />
+            <select id="custom-resource-mime">
+              <option value="">Default (text/plain)</option>
+              <option value="text/markdown">text/markdown</option>
+              <option value="application/json">application/json</option>
+              <option value="text/html">text/html</option>
+            </select>
+            <button onclick="addCustomResource()">Add Resource</button>
+          </div>
+
+          <div style="margin-top: 10px">
+            <textarea
+              id="custom-resource-handler"
+              placeholder="Handler function (e.g., async (uri, { id }) => ({ contents: [{ uri: uri.href, text: `Content for ${id}` }] }))"
+              style="
+                width: 100%;
+                height: 100px;
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-family: monospace;
+              "
+            ></textarea>
+          </div>
         </div>
 
-        <!-- Capabilities Tab -->
-        <div id="capabilities-tab" class="tab-content">
-            <div class="demo-section">
-                <h2>📋 Available Capabilities</h2>
-                <button onclick="refreshCapabilities()">🔄 Refresh</button>
-                
-                <div class="capabilities">
-                    <div class="capability-card">
-                        <h3>🔧 Tools</h3>
-                        <div id="tools-list"></div>
-                    </div>
-                    
-                    <div class="capability-card">
-                        <h3>💬 Prompts</h3>
-                        <div id="prompts-list"></div>
-                    </div>
-                    
-                    <div class="capability-card">
-                        <h3>📁 Resources</h3>
-                        <div id="resources-list"></div>
-                    </div>
-                </div>
-            </div>
+        <div class="demo-section">
+          <h2>🧪 ResourceTemplate Testing</h2>
+
+          <div class="controls">
+            <input
+              type="text"
+              id="template-pattern"
+              placeholder="Template pattern (e.g., user://{userId}/posts/{postId})"
+              style="width: 300px"
+            />
+            <button onclick="testResourceTemplate()">Test Template</button>
+          </div>
+
+          <div class="controls" style="margin-top: 10px">
+            <input
+              type="text"
+              id="test-uri"
+              placeholder="Test URI to match (e.g., user://123/posts/456)"
+              style="width: 300px"
+            />
+            <button onclick="testTemplateMatch()">Test Match</button>
+          </div>
+
+          <div class="controls" style="margin-top: 10px">
+            <input
+              type="text"
+              id="fill-params"
+              placeholder='Parameters JSON (e.g., {"userId": "789", "postId": "abc"})'
+              style="width: 300px"
+            />
+            <label
+              ><input type="checkbox" id="preserve-slashes" /> Preserve
+              slashes</label
+            >
+            <button onclick="testTemplateFill()">Test Fill</button>
+          </div>
+
+          <div
+            id="template-output"
+            class="output"
+            style="display: none; margin-top: 15px"
+          ></div>
         </div>
+      </div>
+
+      <!-- Capabilities Tab -->
+      <div id="capabilities-tab" class="tab-content">
+        <div class="demo-section">
+          <h2>📋 Available Capabilities</h2>
+          <button onclick="refreshCapabilities()">🔄 Refresh</button>
+
+          <div class="capabilities">
+            <div class="capability-card">
+              <h3>🔧 Tools</h3>
+              <div id="tools-list"></div>
+            </div>
+
+            <div class="capability-card">
+              <h3>💬 Prompts</h3>
+              <div id="prompts-list"></div>
+            </div>
+
+            <div class="capability-card">
+              <h3>📁 Resources</h3>
+              <div id="resources-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script type="module">
-        // Import the client - in a real app, you'd bundle this properly
-        import { SelfContainedClient, ResourceTemplate } from '../index.mjs';
-        
-        // Make it available globally for the demo
-        window.SelfContainedClient = SelfContainedClient;
-        window.ResourceTemplate = ResourceTemplate;
-        
-        // Initialize the client with some demo tools
-        window.client = new SelfContainedClient({
-            name: 'browser-demo-client',
-            version: '1.0.0'
-        }, {
-            tools: [
-                ['calculator', { operation: 'string', a: 'number', b: 'number' }, 
-                    async ({ operation, a, b }) => {
-                        const ops = {
-                            add: a + b,
-                            subtract: a - b,
-                            multiply: a * b,
-                            divide: b !== 0 ? a / b : 'Error: Division by zero'
-                        };
-                        return {
-                            content: [{
-                                type: 'text',
-                                text: `${a} ${operation} ${b} = ${ops[operation] || 'Unknown operation'}`
-                            }]
-                        };
-                    }, 'Basic calculator operations'],
-                
-                ['time', async () => ({
-                    content: [{
-                        type: 'text',
-                        text: `Current time: ${new Date().toLocaleString()}`
-                    }]
-                }), 'Get current time'],
-                
-                ['random', { min: 'number', max: 'number' }, 
-                    async ({ min, max }) => ({
-                        content: [{
-                            type: 'text',
-                            text: `Random number between ${min} and ${max}: ${Math.floor(Math.random() * (max - min + 1)) + min}`
-                        }]
-                    }), 'Generate random number'],
+      // Import the client - in a real app, you'd bundle this properly
+      import { MCPSelfContainedClient, ResourceTemplate } from "../index.mjs";
+
+      // Make it available globally for the demo
+      window.MCPSelfContainedClient = MCPSelfContainedClient;
+      window.ResourceTemplate = ResourceTemplate;
+
+      // Initialize the client with some demo tools
+      window.client = new MCPSelfContainedClient(
+        {
+          name: "browser-demo-client",
+          version: "1.0.0",
+        },
+        {
+          tools: [
+            [
+              "calculator",
+              { operation: "string", a: "number", b: "number" },
+              async ({ operation, a, b }) => {
+                const ops = {
+                  add: a + b,
+                  subtract: a - b,
+                  multiply: a * b,
+                  divide: b !== 0 ? a / b : "Error: Division by zero",
+                };
+                return {
+                  content: [
+                    {
+                      type: "text",
+                      text: `${a} ${operation} ${b} = ${
+                        ops[operation] || "Unknown operation"
+                      }`,
+                    },
+                  ],
+                };
+              },
+              "Basic calculator operations",
             ],
-            
-            prompts: [
-                ['email', { recipient: 'string', subject: 'string', tone: 'string' },
-                    ({ recipient, subject, tone }) => ({
-                        messages: [
-                            {
-                                role: 'system',
-                                content: { type: 'text', text: `You are writing an email in a ${tone} tone.` }
-                            },
-                            {
-                                role: 'user',
-                                content: { 
-                                    type: 'text', 
-                                    text: `Write an email to ${recipient} about: ${subject}` 
-                                }
-                            }
-                        ]
-                    }), 'Email template generator'],
-                
-                ['story', { genre: 'string', character: 'string' },
-                    ({ genre, character }) => ({
-                        messages: [{
-                            role: 'user',
-                            content: {
-                                type: 'text',
-                                text: `Write a short ${genre} story featuring ${character}`
-                            }
-                        }]
-                    }), 'Story prompt generator'],
+
+            [
+              "time",
+              async () => ({
+                content: [
+                  {
+                    type: "text",
+                    text: `Current time: ${new Date().toLocaleString()}`,
+                  },
+                ],
+              }),
+              "Get current time",
             ],
-            
-            resources: [
-                ['docs', 'docs://{topic}', 
-                    async (uri, { topic }) => ({
-                        contents: [{
-                            uri: uri.href,
-                            mimeType: 'text/markdown',
-                            text: `# Documentation: ${topic}\n\nThis is the documentation for ${topic}.\n\n## Overview\nLorem ipsum dolor sit amet, consectetur adipiscing elit.`
-                        }]
-                    }), { description: 'Documentation pages' }],
-                
-                ['data', 'data://{type}/{id}',
-                    async (uri, { type, id }) => ({
-                        contents: [{
-                            uri: uri.href,
-                            mimeType: 'application/json',
-                            text: JSON.stringify({
-                                type,
-                                id,
-                                timestamp: new Date().toISOString(),
-                                data: { sample: 'data', random: Math.random() }
-                            }, null, 2)
-                        }]
-                    }), { description: 'Data resources', mimeType: 'application/json' }],
-            ]
-        });
-        
-        // Add some more demo resources with different patterns
-        client.resource('static', 'static://about', 
-            { description: 'Static resource example' },
-            async (uri) => ({
-                contents: [{
+
+            [
+              "random",
+              { min: "number", max: "number" },
+              async ({ min, max }) => ({
+                content: [
+                  {
+                    type: "text",
+                    text: `Random number between ${min} and ${max}: ${
+                      Math.floor(Math.random() * (max - min + 1)) + min
+                    }`,
+                  },
+                ],
+              }),
+              "Generate random number",
+            ],
+          ],
+
+          prompts: [
+            [
+              "email",
+              { recipient: "string", subject: "string", tone: "string" },
+              ({ recipient, subject, tone }) => ({
+                messages: [
+                  {
+                    role: "system",
+                    content: {
+                      type: "text",
+                      text: `You are writing an email in a ${tone} tone.`,
+                    },
+                  },
+                  {
+                    role: "user",
+                    content: {
+                      type: "text",
+                      text: `Write an email to ${recipient} about: ${subject}`,
+                    },
+                  },
+                ],
+              }),
+              "Email template generator",
+            ],
+
+            [
+              "story",
+              { genre: "string", character: "string" },
+              ({ genre, character }) => ({
+                messages: [
+                  {
+                    role: "user",
+                    content: {
+                      type: "text",
+                      text: `Write a short ${genre} story featuring ${character}`,
+                    },
+                  },
+                ],
+              }),
+              "Story prompt generator",
+            ],
+          ],
+
+          resources: [
+            [
+              "docs",
+              "docs://{topic}",
+              async (uri, { topic }) => ({
+                contents: [
+                  {
                     uri: uri.href,
-                    text: 'This is a static resource with no parameters. It always returns the same content.'
-                }]
-            }));
-            
-        client.resource('file', 'file://{path}',
-            { description: 'File system simulation' },
-            async (uri, { path }) => ({
-                contents: [{
+                    mimeType: "text/markdown",
+                    text: `# Documentation: ${topic}\n\nThis is the documentation for ${topic}.\n\n## Overview\nLorem ipsum dolor sit amet, consectetur adipiscing elit.`,
+                  },
+                ],
+              }),
+              { description: "Documentation pages" },
+            ],
+
+            [
+              "data",
+              "data://{type}/{id}",
+              async (uri, { type, id }) => ({
+                contents: [
+                  {
                     uri: uri.href,
-                    mimeType: 'text/plain',
-                    text: `File content for: ${path}\n\n[This is a simulated file system resource]`
-                }]
-            }));
-            
-        client.resource('api', 'api://{version}/endpoints/{endpoint}',
-            { description: 'API documentation', mimeType: 'application/json' },
-            async (uri, { version, endpoint }) => ({
-                contents: [{
-                    uri: uri.href,
-                    mimeType: 'application/json',
-                    text: JSON.stringify({
-                        api_version: version,
-                        endpoint: endpoint,
-                        methods: ['GET', 'POST', 'PUT', 'DELETE'],
-                        example_response: { status: 'ok', data: '...' }
-                    }, null, 2)
-                }]
-            }));
-            
-        // Demo using ResourceTemplate directly
-        const bookTemplate = new ResourceTemplate('books://{category}/{bookId}', {
-            name: 'Book Resource',
-            description: 'Book information by category and ID',
-            mimeType: 'application/json'
-        });
-        
-        client.resource('books', bookTemplate, async (uri, { category, bookId }) => ({
-            contents: [{
-                uri: uri.href,
-                mimeType: 'application/json',
-                text: JSON.stringify({
-                    id: bookId,
-                    category: category,
-                    title: `Book ${bookId} in ${category}`,
-                    author: 'Demo Author',
-                    year: 2024,
-                    isbn: `978-0-${category.charCodeAt(0)}-${bookId}-1`
-                }, null, 2)
-            }]
-        }));
-        
-        // Initialize the UI
-        window.addEventListener('load', () => {
-            refreshCapabilities();
-            updateToolSelect();
-            updatePromptSelect();
-            updateResourceExamples();
-        });
+                    mimeType: "application/json",
+                    text: JSON.stringify(
+                      {
+                        type,
+                        id,
+                        timestamp: new Date().toISOString(),
+                        data: { sample: "data", random: Math.random() },
+                      },
+                      null,
+                      2
+                    ),
+                  },
+                ],
+              }),
+              { description: "Data resources", mimeType: "application/json" },
+            ],
+          ],
+        }
+      );
+
+      // Add some more demo resources with different patterns
+      client.resource(
+        "static",
+        "static://about",
+        { description: "Static resource example" },
+        async (uri) => ({
+          contents: [
+            {
+              uri: uri.href,
+              text: "This is a static resource with no parameters. It always returns the same content.",
+            },
+          ],
+        })
+      );
+
+      client.resource(
+        "file",
+        "file://{path}",
+        { description: "File system simulation" },
+        async (uri, { path }) => ({
+          contents: [
+            {
+              uri: uri.href,
+              mimeType: "text/plain",
+              text: `File content for: ${path}\n\n[This is a simulated file system resource]`,
+            },
+          ],
+        })
+      );
+
+      client.resource(
+        "api",
+        "api://{version}/endpoints/{endpoint}",
+        { description: "API documentation", mimeType: "application/json" },
+        async (uri, { version, endpoint }) => ({
+          contents: [
+            {
+              uri: uri.href,
+              mimeType: "application/json",
+              text: JSON.stringify(
+                {
+                  api_version: version,
+                  endpoint: endpoint,
+                  methods: ["GET", "POST", "PUT", "DELETE"],
+                  example_response: { status: "ok", data: "..." },
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        })
+      );
+
+      // Demo using ResourceTemplate directly
+      const bookTemplate = new ResourceTemplate("books://{category}/{bookId}", {
+        name: "Book Resource",
+        description: "Book information by category and ID",
+        mimeType: "application/json",
+      });
+
+      client.resource(
+        "books",
+        bookTemplate,
+        async (uri, { category, bookId }) => ({
+          contents: [
+            {
+              uri: uri.href,
+              mimeType: "application/json",
+              text: JSON.stringify(
+                {
+                  id: bookId,
+                  category: category,
+                  title: `Book ${bookId} in ${category}`,
+                  author: "Demo Author",
+                  year: 2024,
+                  isbn: `978-0-${category.charCodeAt(0)}-${bookId}-1`,
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        })
+      );
+
+      // Initialize the UI
+      window.addEventListener("load", () => {
+        refreshCapabilities();
+        updateToolSelect();
+        updatePromptSelect();
+        updateResourceExamples();
+      });
     </script>
 
     <script>
-        // UI Functions
-        function switchTab(tabName) {
-            // Update tab buttons
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            event.target.classList.add('active');
-            
-            // Update tab content
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.remove('active');
-            });
-            document.getElementById(`${tabName}-tab`).classList.add('active');
-        }
+      // UI Functions
+      function switchTab(tabName) {
+        // Update tab buttons
+        document.querySelectorAll(".tab").forEach((tab) => {
+          tab.classList.remove("active");
+        });
+        event.target.classList.add("active");
 
-        async function refreshCapabilities() {
-            const tools = await client.listTools();
-            const prompts = await client.listPrompts();
-            const resources = await client.listResources();
-            
-            // Update tools list
-            const toolsList = document.getElementById('tools-list');
-            toolsList.innerHTML = tools.tools.map(tool => `
+        // Update tab content
+        document.querySelectorAll(".tab-content").forEach((content) => {
+          content.classList.remove("active");
+        });
+        document.getElementById(`${tabName}-tab`).classList.add("active");
+      }
+
+      async function refreshCapabilities() {
+        const tools = await client.listTools();
+        const prompts = await client.listPrompts();
+        const resources = await client.listResources();
+
+        // Update tools list
+        const toolsList = document.getElementById("tools-list");
+        toolsList.innerHTML = tools.tools
+          .map(
+            (tool) => `
                 <div class="capability-item">
                     <div class="capability-name">${tool.name}</div>
-                    ${tool.description ? `<div class="capability-description">${tool.description}</div>` : ''}
+                    ${
+                      tool.description
+                        ? `<div class="capability-description">${tool.description}</div>`
+                        : ""
+                    }
                 </div>
-            `).join('');
-            
-            // Update prompts list
-            const promptsList = document.getElementById('prompts-list');
-            promptsList.innerHTML = prompts.prompts.map(prompt => `
+            `
+          )
+          .join("");
+
+        // Update prompts list
+        const promptsList = document.getElementById("prompts-list");
+        promptsList.innerHTML = prompts.prompts
+          .map(
+            (prompt) => `
                 <div class="capability-item">
                     <div class="capability-name">${prompt.name}</div>
-                    ${prompt.description ? `<div class="capability-description">${prompt.description}</div>` : ''}
+                    ${
+                      prompt.description
+                        ? `<div class="capability-description">${prompt.description}</div>`
+                        : ""
+                    }
                 </div>
-            `).join('');
-            
-            // Update resources list
-            const resourcesList = document.getElementById('resources-list');
-            resourcesList.innerHTML = resources.resources.map(resource => `
+            `
+          )
+          .join("");
+
+        // Update resources list
+        const resourcesList = document.getElementById("resources-list");
+        resourcesList.innerHTML = resources.resources
+          .map(
+            (resource) => `
                 <div class="capability-item">
                     <div class="capability-name">${resource.name}</div>
                     <div class="capability-description">${resource.uri}</div>
-                    ${resource.description ? `<div class="capability-description">${resource.description}</div>` : ''}
+                    ${
+                      resource.description
+                        ? `<div class="capability-description">${resource.description}</div>`
+                        : ""
+                    }
                 </div>
-            `).join('');
-            
-            // Update selects
-            updateToolSelect();
-            updatePromptSelect();
-            updateResourceExamples();
+            `
+          )
+          .join("");
+
+        // Update selects
+        updateToolSelect();
+        updatePromptSelect();
+        updateResourceExamples();
+      }
+
+      async function updateToolSelect() {
+        const tools = await client.listTools();
+        const select = document.getElementById("tool-select");
+        select.innerHTML =
+          '<option value="">Select a tool...</option>' +
+          tools.tools
+            .map(
+              (tool) =>
+                `<option value="${tool.name}">${tool.name}${
+                  tool.description ? ` - ${tool.description}` : ""
+                }</option>`
+            )
+            .join("");
+      }
+
+      async function updatePromptSelect() {
+        const prompts = await client.listPrompts();
+        const select = document.getElementById("prompt-select");
+        select.innerHTML =
+          '<option value="">Select a prompt...</option>' +
+          prompts.prompts
+            .map(
+              (prompt) =>
+                `<option value="${prompt.name}">${prompt.name}${
+                  prompt.description ? ` - ${prompt.description}` : ""
+                }</option>`
+            )
+            .join("");
+      }
+
+      async function updateToolInputs() {
+        const toolName = document.getElementById("tool-select").value;
+        const inputsDiv = document.getElementById("tool-inputs");
+
+        if (!toolName) {
+          inputsDiv.innerHTML = "";
+          return;
         }
 
-        async function updateToolSelect() {
-            const tools = await client.listTools();
-            const select = document.getElementById('tool-select');
-            select.innerHTML = '<option value="">Select a tool...</option>' + 
-                tools.tools.map(tool => 
-                    `<option value="${tool.name}">${tool.name}${tool.description ? ` - ${tool.description}` : ''}</option>`
-                ).join('');
-        }
+        // Get tool info to check for schema
+        const tools = await client.listTools();
+        const tool = tools.tools.find((t) => t.name === toolName);
 
-        async function updatePromptSelect() {
-            const prompts = await client.listPrompts();
-            const select = document.getElementById('prompt-select');
-            select.innerHTML = '<option value="">Select a prompt...</option>' + 
-                prompts.prompts.map(prompt => 
-                    `<option value="${prompt.name}">${prompt.name}${prompt.description ? ` - ${prompt.description}` : ''}</option>`
-                ).join('');
-        }
+        // Check if tool has inputSchema
+        if (tool && tool.inputSchema) {
+          // Generate inputs based on schema
+          const inputs = [];
 
-        async function updateToolInputs() {
-            const toolName = document.getElementById('tool-select').value;
-            const inputsDiv = document.getElementById('tool-inputs');
-            
-            if (!toolName) {
-                inputsDiv.innerHTML = '';
-                return;
+          // Handle plain object schemas from declarative config
+          if (
+            typeof tool.inputSchema === "object" &&
+            !tool.inputSchema.properties
+          ) {
+            // This is a simple schema object like { operation: 'string', a: 'number' }
+            for (const [key, type] of Object.entries(tool.inputSchema)) {
+              if (typeof type === "string") {
+                const inputType = type === "number" ? "number" : "text";
+                inputs.push(
+                  `<input type="${inputType}" id="${key}" placeholder="${key}" data-param="${key}">`
+                );
+              }
             }
-            
-            // Get tool info to check for schema
-            const tools = await client.listTools();
-            const tool = tools.tools.find(t => t.name === toolName);
-            
-            
-            // Check if tool has inputSchema
-            if (tool && tool.inputSchema) {
-                // Generate inputs based on schema
-                const inputs = [];
-                
-                // Handle plain object schemas from declarative config
-                if (typeof tool.inputSchema === 'object' && !tool.inputSchema.properties) {
-                    // This is a simple schema object like { operation: 'string', a: 'number' }
-                    for (const [key, type] of Object.entries(tool.inputSchema)) {
-                        if (typeof type === 'string') {
-                            const inputType = type === 'number' ? 'number' : 'text';
-                            inputs.push(`<input type="${inputType}" id="${key}" placeholder="${key}" data-param="${key}">`);
-                        }
-                    }
-                } else if (tool.inputSchema.properties) {
-                    // Standard JSON schema with properties
-                    for (const [key, prop] of Object.entries(tool.inputSchema.properties)) {
-                        const type = prop.type || 'string';
-                        const inputType = type === 'number' ? 'number' : 'text';
-                        const placeholder = prop.description || key;
-                        inputs.push(`<input type="${inputType}" id="${key}" placeholder="${placeholder}" data-param="${key}">`);
-                    }
-                } else if (tool.inputSchema.zodSchema) {
-                    // This is a Zod schema indicator - fall back to hardcoded inputs
-                    const toolInputs = {
-                        calculator: `
+          } else if (tool.inputSchema.properties) {
+            // Standard JSON schema with properties
+            for (const [key, prop] of Object.entries(
+              tool.inputSchema.properties
+            )) {
+              const type = prop.type || "string";
+              const inputType = type === "number" ? "number" : "text";
+              const placeholder = prop.description || key;
+              inputs.push(
+                `<input type="${inputType}" id="${key}" placeholder="${placeholder}" data-param="${key}">`
+              );
+            }
+          } else if (tool.inputSchema.zodSchema) {
+            // This is a Zod schema indicator - fall back to hardcoded inputs
+            const toolInputs = {
+              calculator: `
                             <select id="operation" data-param="operation">
                                 <option value="add">Add</option>
                                 <option value="subtract">Subtract</option>
@@ -658,21 +913,23 @@
                             <input type="number" id="a" placeholder="First number" value="10" data-param="a">
                             <input type="number" id="b" placeholder="Second number" value="5" data-param="b">
                         `,
-                        random: `
+              random: `
                             <input type="number" id="min" placeholder="Min" value="1" data-param="min">
                             <input type="number" id="max" placeholder="Max" value="100" data-param="max">
-                        `
-                    };
-                    inputsDiv.innerHTML = toolInputs[toolName] || '';
-                    return;
-                }
-                
-                // Special handling for calculator operation field
-                if (toolName === 'calculator' && inputs.length > 0) {
-                    // Replace operation input with select
-                    const operationIndex = inputs.findIndex(input => input.includes('id="operation"'));
-                    if (operationIndex !== -1) {
-                        inputs[operationIndex] = `
+                        `,
+            };
+            inputsDiv.innerHTML = toolInputs[toolName] || "";
+            return;
+          }
+
+          // Special handling for calculator operation field
+          if (toolName === "calculator" && inputs.length > 0) {
+            // Replace operation input with select
+            const operationIndex = inputs.findIndex((input) =>
+              input.includes('id="operation"')
+            );
+            if (operationIndex !== -1) {
+              inputs[operationIndex] = `
                             <select id="operation" data-param="operation">
                                 <option value="add">Add</option>
                                 <option value="subtract">Subtract</option>
@@ -680,45 +937,45 @@
                                 <option value="divide">Divide</option>
                             </select>
                         `;
-                    }
-                }
-                
-                inputsDiv.innerHTML = inputs.join('');
-            } else {
-                // No schema - use empty inputs or hardcoded
-                const toolInputs = {
-                    time: ''
-                };
-                
-                inputsDiv.innerHTML = toolInputs[toolName] || '';
             }
+          }
+
+          inputsDiv.innerHTML = inputs.join("");
+        } else {
+          // No schema - use empty inputs or hardcoded
+          const toolInputs = {
+            time: "",
+          };
+
+          inputsDiv.innerHTML = toolInputs[toolName] || "";
+        }
+      }
+
+      async function updatePromptInputs() {
+        const promptName = document.getElementById("prompt-select").value;
+        const inputsDiv = document.getElementById("prompt-inputs");
+
+        if (!promptName) {
+          inputsDiv.innerHTML = "";
+          return;
         }
 
-        async function updatePromptInputs() {
-            const promptName = document.getElementById('prompt-select').value;
-            const inputsDiv = document.getElementById('prompt-inputs');
-            
-            if (!promptName) {
-                inputsDiv.innerHTML = '';
-                return;
-            }
-            
-            // Get prompt info to check for arguments
-            const prompts = await client.listPrompts();
-            const prompt = prompts.prompts.find(p => p.name === promptName);
-            
-            if (prompt && prompt.arguments && prompt.arguments.length > 0) {
-                // Generate inputs based on arguments
-                const inputs = prompt.arguments.map(arg => {
-                    const required = arg.required ? ' (required)' : '';
-                    return `<input type="text" id="${arg.name}" placeholder="${arg.name}${required}" data-param="${arg.name}">`;
-                });
-                
-                inputsDiv.innerHTML = inputs.join('');
-            } else {
-                // No arguments defined - use hardcoded inputs for known prompts
-                const promptInputs = {
-                    email: `
+        // Get prompt info to check for arguments
+        const prompts = await client.listPrompts();
+        const prompt = prompts.prompts.find((p) => p.name === promptName);
+
+        if (prompt && prompt.arguments && prompt.arguments.length > 0) {
+          // Generate inputs based on arguments
+          const inputs = prompt.arguments.map((arg) => {
+            const required = arg.required ? " (required)" : "";
+            return `<input type="text" id="${arg.name}" placeholder="${arg.name}${required}" data-param="${arg.name}">`;
+          });
+
+          inputsDiv.innerHTML = inputs.join("");
+        } else {
+          // No arguments defined - use hardcoded inputs for known prompts
+          const promptInputs = {
+            email: `
                         <input type="text" id="recipient" placeholder="Recipient" value="john@example.com" data-param="recipient">
                         <input type="text" id="subject" placeholder="Subject" value="Project Update" data-param="subject">
                         <select id="tone" data-param="tone">
@@ -727,414 +984,479 @@
                             <option value="formal">Formal</option>
                         </select>
                     `,
-                    story: `
+            story: `
                         <input type="text" id="genre" placeholder="Genre" value="fantasy" data-param="genre">
                         <input type="text" id="character" placeholder="Character" value="a brave knight" data-param="character">
                     `,
-                    greeting: `
+            greeting: `
                         <input type="text" id="name" placeholder="Name" value="Alice" data-param="name">
                         <select id="language" data-param="language">
                             <option value="en">English</option>
                             <option value="es">Spanish</option>
                             <option value="fr">French</option>
                         </select>
-                    `
-                };
-                
-                inputsDiv.innerHTML = promptInputs[promptName] || '';
+                    `,
+          };
+
+          inputsDiv.innerHTML = promptInputs[promptName] || "";
+        }
+      }
+
+      async function executeTool() {
+        const toolName = document.getElementById("tool-select").value;
+        if (!toolName) return;
+
+        const output = document.getElementById("tool-output");
+        output.style.display = "block";
+        output.className = "output";
+        output.innerHTML = '<div class="loading"></div> Executing...';
+
+        try {
+          // Gather arguments dynamically from inputs with data-param
+          let args = {};
+          const inputs = document.querySelectorAll("#tool-inputs [data-param]");
+          inputs.forEach((input) => {
+            const param = input.getAttribute("data-param");
+            let value = input.value;
+
+            // Try to parse numbers
+            if (input.type === "number" && value) {
+              value = parseFloat(value);
             }
+
+            args[param] = value;
+          });
+
+          const result = await client.callTool({
+            name: toolName,
+            arguments: args,
+          });
+
+          if (result.isError) {
+            output.className = "output error";
+          } else {
+            output.className = "output success";
+          }
+
+          output.textContent = result.content.map((c) => c.text).join("\n");
+        } catch (error) {
+          output.className = "output error";
+          output.textContent = `Error: ${error.message}`;
+        }
+      }
+
+      async function generatePrompt() {
+        const promptName = document.getElementById("prompt-select").value;
+        if (!promptName) return;
+
+        const output = document.getElementById("prompt-output");
+        output.style.display = "block";
+        output.className = "output";
+        output.innerHTML = '<div class="loading"></div> Generating...';
+
+        try {
+          // Gather arguments dynamically from inputs with data-param
+          let args = {};
+          const inputs = document.querySelectorAll(
+            "#prompt-inputs [data-param]"
+          );
+          inputs.forEach((input) => {
+            const param = input.getAttribute("data-param");
+            args[param] = input.value;
+          });
+
+          const result = await client.getPrompt({
+            name: promptName,
+            arguments: args,
+          });
+
+          output.className = "output success";
+          output.textContent = result.messages
+            .map((m) => `[${m.role}]: ${m.content.text}`)
+            .join("\n\n");
+        } catch (error) {
+          output.className = "output error";
+          output.textContent = `Error: ${error.message}`;
+        }
+      }
+
+      async function readResource() {
+        const uri = document.getElementById("resource-uri").value;
+        if (!uri) return;
+
+        const output = document.getElementById("resource-output");
+        output.style.display = "block";
+        output.className = "output";
+        output.innerHTML = '<div class="loading"></div> Reading...';
+
+        try {
+          const result = await client.readResource({ uri });
+
+          output.className = "output success";
+          output.textContent = result.contents
+            .map(
+              (c) =>
+                `URI: ${c.uri}\n` +
+                `Type: ${c.mimeType || "text/plain"}\n` +
+                `---\n${c.text}`
+            )
+            .join("\n\n");
+        } catch (error) {
+          output.className = "output error";
+          output.textContent = `Error: ${error.message}`;
+        }
+      }
+
+      async function addCustomTool() {
+        const name = document.getElementById("custom-tool-name").value;
+        const description = document.getElementById(
+          "custom-tool-description"
+        ).value;
+        const schemaCode = document.getElementById("custom-tool-schema").value;
+        const handlerCode = document.getElementById(
+          "custom-tool-handler"
+        ).value;
+
+        if (!name || !handlerCode) {
+          alert("Please provide a name and handler function");
+          return;
         }
 
-        async function executeTool() {
-            const toolName = document.getElementById('tool-select').value;
-            if (!toolName) return;
-            
-            const output = document.getElementById('tool-output');
-            output.style.display = 'block';
-            output.className = 'output';
-            output.innerHTML = '<div class="loading"></div> Executing...';
-            
-            try {
-                // Gather arguments dynamically from inputs with data-param
-                let args = {};
-                const inputs = document.querySelectorAll('#tool-inputs [data-param]');
-                inputs.forEach(input => {
-                    const param = input.getAttribute('data-param');
-                    let value = input.value;
-                    
-                    // Try to parse numbers
-                    if (input.type === 'number' && value) {
-                        value = parseFloat(value);
-                    }
-                    
-                    args[param] = value;
-                });
-                
-                const result = await client.callTool({ name: toolName, arguments: args });
-                
-                if (result.isError) {
-                    output.className = 'output error';
+        try {
+          // Parse the schema if provided
+          let schema = null;
+          if (schemaCode) {
+            schema = eval(`(${schemaCode})`);
+          }
+
+          // Create the handler function from the code
+          const handler = eval(`(${handlerCode})`);
+
+          // Add the tool with proper arguments
+          if (schema && description) {
+            client.tool(name, { schema, description }, handler);
+          } else if (schema) {
+            client.tool(name, schema, handler);
+          } else if (description) {
+            client.tool(name, { description }, handler);
+          } else {
+            client.tool(name, handler);
+          }
+
+          // Clear inputs
+          document.getElementById("custom-tool-name").value = "";
+          document.getElementById("custom-tool-description").value = "";
+          document.getElementById("custom-tool-schema").value = "";
+          document.getElementById("custom-tool-handler").value = "";
+
+          // Refresh capabilities
+          await refreshCapabilities();
+
+          alert(`Tool "${name}" added successfully!`);
+        } catch (error) {
+          alert(`Error adding tool: ${error.message}`);
+        }
+      }
+
+      async function addCustomPrompt() {
+        const name = document.getElementById("custom-prompt-name").value;
+        const description = document.getElementById(
+          "custom-prompt-description"
+        ).value;
+        const schemaCode = document.getElementById(
+          "custom-prompt-schema"
+        ).value;
+        const handlerCode = document.getElementById(
+          "custom-prompt-handler"
+        ).value;
+
+        if (!name || !handlerCode) {
+          alert("Please provide a name and handler function");
+          return;
+        }
+
+        try {
+          // Parse the schema if provided
+          let schema = null;
+          if (schemaCode) {
+            schema = eval(`(${schemaCode})`);
+          }
+
+          // Create the handler function from the code
+          const handler = eval(`(${handlerCode})`);
+
+          // Add the prompt with proper arguments
+          if (schema && description) {
+            client.prompt(name, { schema, description }, handler);
+          } else if (schema) {
+            client.prompt(name, schema, handler);
+          } else if (description) {
+            client.prompt(name, { description }, handler);
+          } else {
+            client.prompt(name, handler);
+          }
+
+          // Clear inputs
+          document.getElementById("custom-prompt-name").value = "";
+          document.getElementById("custom-prompt-description").value = "";
+          document.getElementById("custom-prompt-schema").value = "";
+          document.getElementById("custom-prompt-handler").value = "";
+
+          // Refresh capabilities
+          await refreshCapabilities();
+
+          alert(`Prompt "${name}" added successfully!`);
+        } catch (error) {
+          alert(`Error adding prompt: ${error.message}`);
+        }
+      }
+
+      async function updateResourceExamples() {
+        const resources = await client.listResources();
+        const examplesDiv = document.getElementById("resource-examples");
+
+        const examples = resources.resources
+          .map((resource) => {
+            // Generate example URIs based on the pattern
+            let exampleUris = [];
+            const pattern = resource.uri;
+
+            if (pattern.includes("{")) {
+              // Dynamic resource with parameters
+              if (pattern === "docs://{topic}") {
+                exampleUris = ["docs://intro", "docs://api", "docs://tutorial"];
+              } else if (pattern === "data://{type}/{id}") {
+                exampleUris = [
+                  "data://user/123",
+                  "data://product/abc",
+                  "data://order/456",
+                ];
+              } else if (pattern === "file://{path}") {
+                exampleUris = [
+                  "file://readme.txt",
+                  "file://config/app.json",
+                  "file://logs/2024.log",
+                ];
+              } else if (pattern === "api://{version}/endpoints/{endpoint}") {
+                exampleUris = [
+                  "api://v1/endpoints/users",
+                  "api://v2/endpoints/products",
+                ];
+              } else if (pattern === "books://{category}/{bookId}") {
+                exampleUris = [
+                  "books://fiction/1984",
+                  "books://tech/js-guide",
+                  "books://history/ww2",
+                ];
+              } else if (pattern === "config://{key}") {
+                exampleUris = [
+                  "config://version",
+                  "config://features",
+                  "config://debug",
+                ];
+              } else {
+                // Generic example for custom patterns
+                const params = pattern.match(/\{([^}]+)\}/g) || [];
+                if (params.length === 1) {
+                  exampleUris = [pattern.replace(params[0], "example")];
                 } else {
-                    output.className = 'output success';
+                  exampleUris = [pattern.replace(/\{[^}]+\}/g, "value")];
                 }
-                
-                output.textContent = result.content.map(c => c.text).join('\n');
-            } catch (error) {
-                output.className = 'output error';
-                output.textContent = `Error: ${error.message}`;
+              }
+            } else {
+              // Static resource
+              exampleUris = [pattern];
             }
-        }
 
-        async function generatePrompt() {
-            const promptName = document.getElementById('prompt-select').value;
-            if (!promptName) return;
-            
-            const output = document.getElementById('prompt-output');
-            output.style.display = 'block';
-            output.className = 'output';
-            output.innerHTML = '<div class="loading"></div> Generating...';
-            
-            try {
-                // Gather arguments dynamically from inputs with data-param
-                let args = {};
-                const inputs = document.querySelectorAll('#prompt-inputs [data-param]');
-                inputs.forEach(input => {
-                    const param = input.getAttribute('data-param');
-                    args[param] = input.value;
-                });
-                
-                const result = await client.getPrompt({ name: promptName, arguments: args });
-                
-                output.className = 'output success';
-                output.textContent = result.messages.map(m => 
-                    `[${m.role}]: ${m.content.text}`
-                ).join('\n\n');
-            } catch (error) {
-                output.className = 'output error';
-                output.textContent = `Error: ${error.message}`;
-            }
-        }
-
-        async function readResource() {
-            const uri = document.getElementById('resource-uri').value;
-            if (!uri) return;
-            
-            const output = document.getElementById('resource-output');
-            output.style.display = 'block';
-            output.className = 'output';
-            output.innerHTML = '<div class="loading"></div> Reading...';
-            
-            try {
-                const result = await client.readResource({ uri });
-                
-                output.className = 'output success';
-                output.textContent = result.contents.map(c => 
-                    `URI: ${c.uri}\n` +
-                    `Type: ${c.mimeType || 'text/plain'}\n` +
-                    `---\n${c.text}`
-                ).join('\n\n');
-            } catch (error) {
-                output.className = 'output error';
-                output.textContent = `Error: ${error.message}`;
-            }
-        }
-
-        async function addCustomTool() {
-            const name = document.getElementById('custom-tool-name').value;
-            const description = document.getElementById('custom-tool-description').value;
-            const schemaCode = document.getElementById('custom-tool-schema').value;
-            const handlerCode = document.getElementById('custom-tool-handler').value;
-            
-            if (!name || !handlerCode) {
-                alert('Please provide a name and handler function');
-                return;
-            }
-            
-            try {
-                // Parse the schema if provided
-                let schema = null;
-                if (schemaCode) {
-                    schema = eval(`(${schemaCode})`);
-                }
-                
-                // Create the handler function from the code
-                const handler = eval(`(${handlerCode})`);
-                
-                // Add the tool with proper arguments
-                if (schema && description) {
-                    client.tool(name, { schema, description }, handler);
-                } else if (schema) {
-                    client.tool(name, schema, handler);
-                } else if (description) {
-                    client.tool(name, { description }, handler);
-                } else {
-                    client.tool(name, handler);
-                }
-                
-                // Clear inputs
-                document.getElementById('custom-tool-name').value = '';
-                document.getElementById('custom-tool-description').value = '';
-                document.getElementById('custom-tool-schema').value = '';
-                document.getElementById('custom-tool-handler').value = '';
-                
-                // Refresh capabilities
-                await refreshCapabilities();
-                
-                alert(`Tool "${name}" added successfully!`);
-            } catch (error) {
-                alert(`Error adding tool: ${error.message}`);
-            }
-        }
-        
-        async function addCustomPrompt() {
-            const name = document.getElementById('custom-prompt-name').value;
-            const description = document.getElementById('custom-prompt-description').value;
-            const schemaCode = document.getElementById('custom-prompt-schema').value;
-            const handlerCode = document.getElementById('custom-prompt-handler').value;
-            
-            if (!name || !handlerCode) {
-                alert('Please provide a name and handler function');
-                return;
-            }
-            
-            try {
-                // Parse the schema if provided
-                let schema = null;
-                if (schemaCode) {
-                    schema = eval(`(${schemaCode})`);
-                }
-                
-                // Create the handler function from the code
-                const handler = eval(`(${handlerCode})`);
-                
-                // Add the prompt with proper arguments
-                if (schema && description) {
-                    client.prompt(name, { schema, description }, handler);
-                } else if (schema) {
-                    client.prompt(name, schema, handler);
-                } else if (description) {
-                    client.prompt(name, { description }, handler);
-                } else {
-                    client.prompt(name, handler);
-                }
-                
-                // Clear inputs
-                document.getElementById('custom-prompt-name').value = '';
-                document.getElementById('custom-prompt-description').value = '';
-                document.getElementById('custom-prompt-schema').value = '';
-                document.getElementById('custom-prompt-handler').value = '';
-                
-                // Refresh capabilities
-                await refreshCapabilities();
-                
-                alert(`Prompt "${name}" added successfully!`);
-            } catch (error) {
-                alert(`Error adding prompt: ${error.message}`);
-            }
-        }
-
-        async function updateResourceExamples() {
-            const resources = await client.listResources();
-            const examplesDiv = document.getElementById('resource-examples');
-            
-            const examples = resources.resources.map(resource => {
-                // Generate example URIs based on the pattern
-                let exampleUris = [];
-                const pattern = resource.uri;
-                
-                if (pattern.includes('{')) {
-                    // Dynamic resource with parameters
-                    if (pattern === 'docs://{topic}') {
-                        exampleUris = ['docs://intro', 'docs://api', 'docs://tutorial'];
-                    } else if (pattern === 'data://{type}/{id}') {
-                        exampleUris = ['data://user/123', 'data://product/abc', 'data://order/456'];
-                    } else if (pattern === 'file://{path}') {
-                        exampleUris = ['file://readme.txt', 'file://config/app.json', 'file://logs/2024.log'];
-                    } else if (pattern === 'api://{version}/endpoints/{endpoint}') {
-                        exampleUris = ['api://v1/endpoints/users', 'api://v2/endpoints/products'];
-                    } else if (pattern === 'books://{category}/{bookId}') {
-                        exampleUris = ['books://fiction/1984', 'books://tech/js-guide', 'books://history/ww2'];
-                    } else if (pattern === 'config://{key}') {
-                        exampleUris = ['config://version', 'config://features', 'config://debug'];
-                    } else {
-                        // Generic example for custom patterns
-                        const params = pattern.match(/\{([^}]+)\}/g) || [];
-                        if (params.length === 1) {
-                            exampleUris = [pattern.replace(params[0], 'example')];
-                        } else {
-                            exampleUris = [pattern.replace(/\{[^}]+\}/g, 'value')];
-                        }
-                    }
-                } else {
-                    // Static resource
-                    exampleUris = [pattern];
-                }
-                
-                return `
+            return `
                     <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; border: 1px solid #dee2e6;">
-                        <div style="font-weight: bold; color: #2c3e50;">${resource.name}</div>
-                        ${resource.description ? `<div style="font-size: 0.9em; color: #6c757d; margin-bottom: 5px;">${resource.description}</div>` : ''}
+                        <div style="font-weight: bold; color: #2c3e50;">${
+                          resource.name
+                        }</div>
+                        ${
+                          resource.description
+                            ? `<div style="font-size: 0.9em; color: #6c757d; margin-bottom: 5px;">${resource.description}</div>`
+                            : ""
+                        }
                         <div style="font-size: 0.85em; color: #495057; margin-top: 5px;">
                             Pattern: <code style="background: #e9ecef; padding: 2px 4px; border-radius: 3px;">${pattern}</code>
                         </div>
                         <div style="margin-top: 5px;">
-                            ${exampleUris.map(uri => 
-                                `<button onclick="document.getElementById('resource-uri').value='${uri}'; readResource();" 
+                            ${exampleUris
+                              .map(
+                                (uri) =>
+                                  `<button onclick="document.getElementById('resource-uri').value='${uri}'; readResource();" 
                                     style="font-size: 0.8em; padding: 4px 8px; margin: 2px; background: #e9ecef; border: 1px solid #ced4da; border-radius: 3px; cursor: pointer;">
                                     ${uri}
                                 </button>`
-                            ).join('')}
+                              )
+                              .join("")}
                         </div>
                     </div>
                 `;
-            }).join('');
-            
-            examplesDiv.innerHTML = examples;
+          })
+          .join("");
+
+        examplesDiv.innerHTML = examples;
+      }
+
+      async function addCustomResource() {
+        const name = document.getElementById("custom-resource-name").value;
+        const pattern = document.getElementById(
+          "custom-resource-pattern"
+        ).value;
+        const description = document.getElementById(
+          "custom-resource-description"
+        ).value;
+        const mimeType = document.getElementById("custom-resource-mime").value;
+        const handlerCode = document.getElementById(
+          "custom-resource-handler"
+        ).value;
+
+        if (!name || !pattern || !handlerCode) {
+          alert("Please provide name, pattern, and handler function");
+          return;
         }
 
-        async function addCustomResource() {
-            const name = document.getElementById('custom-resource-name').value;
-            const pattern = document.getElementById('custom-resource-pattern').value;
-            const description = document.getElementById('custom-resource-description').value;
-            const mimeType = document.getElementById('custom-resource-mime').value;
-            const handlerCode = document.getElementById('custom-resource-handler').value;
-            
-            if (!name || !pattern || !handlerCode) {
-                alert('Please provide name, pattern, and handler function');
-                return;
-            }
-            
-            try {
-                // Create the handler function from the code
-                const handler = eval(`(${handlerCode})`);
-                
-                // Add the resource with options
-                const options = {};
-                if (description) options.description = description;
-                if (mimeType) options.mimeType = mimeType;
-                
-                const template = new ResourceTemplate(pattern);
-                
-                if (Object.keys(options).length > 0) {
-                    client.resource(name, template, options, handler);
-                } else {
-                    client.resource(name, template, handler);
-                }
-                
-                // Clear inputs
-                document.getElementById('custom-resource-name').value = '';
-                document.getElementById('custom-resource-pattern').value = '';
-                document.getElementById('custom-resource-description').value = '';
-                document.getElementById('custom-resource-mime').value = '';
-                document.getElementById('custom-resource-handler').value = '';
-                
-                // Refresh capabilities and examples
-                await refreshCapabilities();
-                await updateResourceExamples();
-                
-                alert(`Resource "${name}" added successfully!`);
-            } catch (error) {
-                alert(`Error adding resource: ${error.message}`);
-            }
+        try {
+          // Create the handler function from the code
+          const handler = eval(`(${handlerCode})`);
+
+          // Add the resource with options
+          const options = {};
+          if (description) options.description = description;
+          if (mimeType) options.mimeType = mimeType;
+
+          const template = new ResourceTemplate(pattern);
+
+          if (Object.keys(options).length > 0) {
+            client.resource(name, template, options, handler);
+          } else {
+            client.resource(name, template, handler);
+          }
+
+          // Clear inputs
+          document.getElementById("custom-resource-name").value = "";
+          document.getElementById("custom-resource-pattern").value = "";
+          document.getElementById("custom-resource-description").value = "";
+          document.getElementById("custom-resource-mime").value = "";
+          document.getElementById("custom-resource-handler").value = "";
+
+          // Refresh capabilities and examples
+          await refreshCapabilities();
+          await updateResourceExamples();
+
+          alert(`Resource "${name}" added successfully!`);
+        } catch (error) {
+          alert(`Error adding resource: ${error.message}`);
+        }
+      }
+
+      // ResourceTemplate testing functions
+      let currentTemplate = null;
+
+      window.testResourceTemplate = function () {
+        const pattern = document.getElementById("template-pattern").value;
+        if (!pattern) {
+          alert("Please enter a template pattern");
+          return;
         }
 
-        // ResourceTemplate testing functions
-        let currentTemplate = null;
-        
-        window.testResourceTemplate = function() {
-            const pattern = document.getElementById('template-pattern').value;
-            if (!pattern) {
-                alert('Please enter a template pattern');
-                return;
-            }
-            
-            try {
-                currentTemplate = new ResourceTemplate(pattern);
-                const output = document.getElementById('template-output');
-                output.style.display = 'block';
-                output.className = 'output success';
-                output.textContent = `Template created successfully!\n\n` +
-                    `Pattern: ${currentTemplate.pattern}\n` +
-                    `Extracted keys: ${JSON.stringify(currentTemplate.keys)}\n` +
-                    `Name: ${currentTemplate.name || '(not set)'}\n` +
-                    `Description: ${currentTemplate.description || '(not set)'}\n` +
-                    `MIME Type: ${currentTemplate.mimeType || '(not set)'}`;
-            } catch (error) {
-                const output = document.getElementById('template-output');
-                output.style.display = 'block';
-                output.className = 'output error';
-                output.textContent = `Error creating template: ${error.message}`;
-            }
-        };
-        
-        window.testTemplateMatch = function() {
-            if (!currentTemplate) {
-                alert('Please create a template first');
-                return;
-            }
-            
-            const uriString = document.getElementById('test-uri').value;
-            if (!uriString) {
-                alert('Please enter a URI to test');
-                return;
-            }
-            
-            try {
-                const uri = new URL(uriString);
-                const params = currentTemplate.match(uri);
-                
-                const output = document.getElementById('template-output');
-                output.style.display = 'block';
-                
-                if (params) {
-                    output.className = 'output success';
-                    output.textContent = `Match successful!\n\n` +
-                        `Extracted parameters:\n${JSON.stringify(params, null, 2)}`;
-                } else {
-                    output.className = 'output';
-                    output.textContent = `No match - URI does not match the template pattern`;
-                }
-            } catch (error) {
-                const output = document.getElementById('template-output');
-                output.style.display = 'block';
-                output.className = 'output error';
-                output.textContent = `Error: ${error.message}`;
-            }
-        };
-        
-        window.testTemplateFill = function() {
-            if (!currentTemplate) {
-                alert('Please create a template first');
-                return;
-            }
-            
-            const paramsString = document.getElementById('fill-params').value;
-            if (!paramsString) {
-                alert('Please enter parameters JSON');
-                return;
-            }
-            
-            try {
-                const params = JSON.parse(paramsString);
-                const preserveSlashes = document.getElementById('preserve-slashes').checked;
-                const filledUrl = currentTemplate.fill(params, preserveSlashes);
-                
-                const output = document.getElementById('template-output');
-                output.style.display = 'block';
-                output.className = 'output success';
-                output.textContent = `Filled URL: ${filledUrl.href}\n\n` +
-                    `Preserve slashes: ${preserveSlashes}`;
-            } catch (error) {
-                const output = document.getElementById('template-output');
-                output.style.display = 'block';
-                output.className = 'output error';
-                output.textContent = `Error: ${error.message}`;
-            }
-        };
-        
-        // Update inputs when selection changes
-        document.getElementById('tool-select').addEventListener('change', () => updateToolInputs());
-        document.getElementById('prompt-select').addEventListener('change', () => updatePromptInputs());
+        try {
+          currentTemplate = new ResourceTemplate(pattern);
+          const output = document.getElementById("template-output");
+          output.style.display = "block";
+          output.className = "output success";
+          output.textContent =
+            `Template created successfully!\n\n` +
+            `Pattern: ${currentTemplate.pattern}\n` +
+            `Extracted keys: ${JSON.stringify(currentTemplate.keys)}\n` +
+            `Name: ${currentTemplate.name || "(not set)"}\n` +
+            `Description: ${currentTemplate.description || "(not set)"}\n` +
+            `MIME Type: ${currentTemplate.mimeType || "(not set)"}`;
+        } catch (error) {
+          const output = document.getElementById("template-output");
+          output.style.display = "block";
+          output.className = "output error";
+          output.textContent = `Error creating template: ${error.message}`;
+        }
+      };
+
+      window.testTemplateMatch = function () {
+        if (!currentTemplate) {
+          alert("Please create a template first");
+          return;
+        }
+
+        const uriString = document.getElementById("test-uri").value;
+        if (!uriString) {
+          alert("Please enter a URI to test");
+          return;
+        }
+
+        try {
+          const uri = new URL(uriString);
+          const params = currentTemplate.match(uri);
+
+          const output = document.getElementById("template-output");
+          output.style.display = "block";
+
+          if (params) {
+            output.className = "output success";
+            output.textContent =
+              `Match successful!\n\n` +
+              `Extracted parameters:\n${JSON.stringify(params, null, 2)}`;
+          } else {
+            output.className = "output";
+            output.textContent = `No match - URI does not match the template pattern`;
+          }
+        } catch (error) {
+          const output = document.getElementById("template-output");
+          output.style.display = "block";
+          output.className = "output error";
+          output.textContent = `Error: ${error.message}`;
+        }
+      };
+
+      window.testTemplateFill = function () {
+        if (!currentTemplate) {
+          alert("Please create a template first");
+          return;
+        }
+
+        const paramsString = document.getElementById("fill-params").value;
+        if (!paramsString) {
+          alert("Please enter parameters JSON");
+          return;
+        }
+
+        try {
+          const params = JSON.parse(paramsString);
+          const preserveSlashes =
+            document.getElementById("preserve-slashes").checked;
+          const filledUrl = currentTemplate.fill(params, preserveSlashes);
+
+          const output = document.getElementById("template-output");
+          output.style.display = "block";
+          output.className = "output success";
+          output.textContent =
+            `Filled URL: ${filledUrl.href}\n\n` +
+            `Preserve slashes: ${preserveSlashes}`;
+        } catch (error) {
+          const output = document.getElementById("template-output");
+          output.style.display = "block";
+          output.className = "output error";
+          output.textContent = `Error: ${error.message}`;
+        }
+      };
+
+      // Update inputs when selection changes
+      document
+        .getElementById("tool-select")
+        .addEventListener("change", () => updateToolInputs());
+      document
+        .getElementById("prompt-select")
+        .addEventListener("change", () => updatePromptInputs());
     </script>
-</body>
+  </body>
 </html>

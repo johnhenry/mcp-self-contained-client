@@ -9,6 +9,7 @@ This is a self-contained Model Context Protocol (MCP) client implementation that
 ## Key Architecture
 
 The codebase consists of:
+
 - `index.mjs`: Core JavaScript implementation with JSDoc type annotations providing the MCP client with tool execution, prompt generation, and resource resolution capabilities
 - `types.d.ts`: TypeScript type definitions for the client, handlers, and entries
 
@@ -17,6 +18,7 @@ The client uses a Map-based storage system for tools, prompts, and resources, al
 ## Development Commands
 
 Currently, the project has minimal build infrastructure:
+
 - No test suite is configured (package.json shows "Error: no test specified")
 - No linting or type-checking commands are defined
 - The project uses ES modules (`"type": "module"`)
@@ -28,7 +30,8 @@ Currently, the project has minimal build infrastructure:
 
 ## Key Implementation Details
 
-The `SelfContainedClient` class provides:
+The `MCPSelfContainedClient` class provides:
+
 - Tool registration via `tool()` method with optional Zod schema validation
 - Prompt registration via `prompt()` method
 - Resource registration via `resource()` method using URI templates

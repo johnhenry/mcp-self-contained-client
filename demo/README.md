@@ -1,17 +1,19 @@
-# SelfContainedClient Demos
+# MCPSelfContainedClient Demos
 
-This directory contains comprehensive demonstrations of the SelfContainedClient capabilities.
+This directory contains comprehensive demonstrations of the MCPSelfContainedClient capabilities.
 
 ## 🚀 Node.js Demo
 
-A command-line demo that showcases all features of the SelfContainedClient.
+A command-line demo that showcases all features of the MCPSelfContainedClient.
 
 ### Run the demo:
+
 ```bash
 npm run demo
 ```
 
 ### Features demonstrated:
+
 - ✅ Declarative configuration
 - 🔧 Tool execution with various schemas
 - 💬 Prompt generation
@@ -23,15 +25,17 @@ npm run demo
 
 ## 🌐 Visual Browser Demo
 
-An interactive web interface for exploring the SelfContainedClient.
+An interactive web interface for exploring the MCPSelfContainedClient.
 
 ### Run the demo:
+
 Open `demo/index.html` in your browser using any static file server.
 
 ### Features:
+
 - **Tools Tab**: Execute built-in tools and add custom tools dynamically
 - **Prompts Tab**: Generate prompts with different parameters
-- **Resources Tab**: 
+- **Resources Tab**:
   - Read resources by URI
   - View all available resources with their patterns
   - Click example URIs to instantly test them
@@ -40,6 +44,7 @@ Open `demo/index.html` in your browser using any static file server.
 - **Capabilities Tab**: View all registered tools, prompts, and resources
 
 ### Interactive Features:
+
 - 🎯 Select and execute tools with custom inputs
 - ➕ Add new tools on the fly with custom handlers
 - 📝 Generate email and story prompts
@@ -51,13 +56,14 @@ Open `demo/index.html` in your browser using any static file server.
 - `demo.mjs` - Node.js command-line demo
 - `index.html` - Visual browser demo (self-contained)
 
-Both demos use the same SelfContainedClient library and demonstrate both declarative and imperative APIs.
+Both demos use the same MCPSelfContainedClient library and demonstrate both declarative and imperative APIs.
 
 ### Resource Examples in the Browser Demo
 
 The browser demo includes several resource types:
+
 - **Static Resources**: `static://about` - Fixed content with no parameters
-- **Dynamic Resources**: 
+- **Dynamic Resources**:
   - `docs://{topic}` - Documentation pages (try: docs://intro, docs://api)
   - `data://{type}/{id}` - Data resources (try: data://user/123)
   - `file://{path}` - File simulation (try: file://readme.txt)

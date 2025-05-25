@@ -1,4 +1,4 @@
-# SelfContainedClient
+# MCPSelfContainedClient
 
 A dynamic, in-memory implementation of a Model Context Protocol (MCP) client that allows you to define and manage tools, prompts, and resources locally—without connecting to an external server.
 
@@ -39,9 +39,9 @@ npm install zod
 ### Create a Client
 
 ```js
-import { SelfContainedClient } from "./index.mjs";
+import { MCPSelfContainedClient } from "./index.mjs";
 
-const client = new SelfContainedClient({
+const client = new MCPSelfContainedClient({
   name: "my-mcp-client",
   version: "1.0.0",
 });
@@ -52,73 +52,111 @@ const client = new SelfContainedClient({
 You can also create a client with all capabilities defined declaratively, similar to [mcp-declarative-server](https://www.npmjs.com/package/mcp-declarative-server):
 
 ```js
-const client = new SelfContainedClient({
-  name: "my-mcp-client",
-  version: "1.0.0",
-}, {
-  tools: [
-    // Simple tool: [name, handler]
-    ["greeting", async ({ name }) => ({
-      content: [{ type: "text", text: `Hello, ${name}!` }]
-    })],
-    
-    // With schema: [name, schema, handler]
-    ["calculate", { a: "number", b: "number" }, async ({ a, b }) => ({
-      content: [{ type: "text", text: `Sum: ${a + b}` }]
-    })],
-    
-    // With Zod schema and description: [name, schema, handler, description]
-    ["divide", z.object({
-      dividend: z.number(),
-      divisor: z.number().refine(n => n !== 0, "Cannot divide by zero")
-    }), async ({ dividend, divisor }) => ({
-      content: [{ type: "text", text: `Result: ${dividend / divisor}` }]
-    }), "Divides two numbers"],
-  ],
-  
-  prompts: [
-    // Simple prompt: [name, handler]
-    ["welcome", ({ name }) => ({
-      messages: [{
-        role: "user",
-        content: { type: "text", text: `Welcome, ${name}!` }
-      }]
-    })],
-    
-    // With schema and description: [name, schema, handler, description]
-    ["code-review", { language: "string", code: "string" }, ({ language, code }) => ({
-      messages: [
-        {
-          role: "system",
-          content: { type: "text", text: `You are a ${language} expert.` }
-        },
-        {
-          role: "user",
-          content: { type: "text", text: `Review this code:\n${code}` }
-        }
-      ]
-    }), "Generate a code review prompt"],
-  ],
-  
-  resources: [
-    // Simple resource: [name, uriPattern, handler]
-    ["docs", "docs://{page}", async (uri, { page }) => ({
-      contents: [{
-        uri: uri.href,
-        text: `Documentation for ${page}`
-      }]
-    })],
-    
-    // With options: [name, uriPattern, handler, options]
-    ["api", "api://{endpoint}", async (uri, { endpoint }) => ({
-      contents: [{
-        uri: uri.href,
-        mimeType: "application/json",
-        text: JSON.stringify({ endpoint, data: "..." })
-      }]
-    }), { description: "API endpoint data", mimeType: "application/json" }],
-  ]
-});
+const client = new MCPSelfContainedClient(
+  {
+    name: "my-mcp-client",
+    version: "1.0.0",
+  },
+  {
+    tools: [
+      // Simple tool: [name, handler]
+      [
+        "greeting",
+        async ({ name }) => ({
+          content: [{ type: "text", text: `Hello, ${name}!` }],
+        }),
+      ],
+
+      // With schema: [name, schema, handler]
+      [
+        "calculate",
+        { a: "number", b: "number" },
+        async ({ a, b }) => ({
+          content: [{ type: "text", text: `Sum: ${a + b}` }],
+        }),
+      ],
+
+      // With Zod schema and description: [name, schema, handler, description]
+      [
+        "divide",
+        z.object({
+          dividend: z.number(),
+          divisor: z.number().refine((n) => n !== 0, "Cannot divide by zero"),
+        }),
+        async ({ dividend, divisor }) => ({
+          content: [{ type: "text", text: `Result: ${dividend / divisor}` }],
+        }),
+        "Divides two numbers",
+      ],
+    ],
+
+    prompts: [
+      // Simple prompt: [name, handler]
+      [
+        "welcome",
+        ({ name }) => ({
+          messages: [
+            {
+              role: "user",
+              content: { type: "text", text: `Welcome, ${name}!` },
+            },
+          ],
+        }),
+      ],
+
+      // With schema and description: [name, schema, handler, description]
+      [
+        "code-review",
+        { language: "string", code: "string" },
+        ({ language, code }) => ({
+          messages: [
+            {
+              role: "system",
+              content: { type: "text", text: `You are a ${language} expert.` },
+            },
+            {
+              role: "user",
+              content: { type: "text", text: `Review this code:\n${code}` },
+            },
+          ],
+        }),
+        "Generate a code review prompt",
+      ],
+    ],
+
+    resources: [
+      // Simple resource: [name, uriPattern, handler]
+      [
+        "docs",
+        "docs://{page}",
+        async (uri, { page }) => ({
+          contents: [
+            {
+              uri: uri.href,
+              text: `Documentation for ${page}`,
+            },
+          ],
+        }),
+      ],
+
+      // With options: [name, uriPattern, handler, options]
+      [
+        "api",
+        "api://{endpoint}",
+        async (uri, { endpoint }) => ({
+          contents: [
+            {
+              uri: uri.href,
+              mimeType: "application/json",
+              text: JSON.stringify({ endpoint, data: "..." }),
+            },
+          ],
+        }),
+        { description: "API endpoint data", mimeType: "application/json" },
+      ],
+    ],
+  }
+);
 ```
 
 You can mix declarative and imperative registration - tools, prompts, and resources added via the declarative config work exactly the same as those added via the imperative API.
@@ -443,7 +481,7 @@ if (result.isError) {
 ### Constructor
 
 ```js
-new SelfContainedClient(
+new MCPSelfContainedClient(
   options: {
     name: string;
     version: string;
