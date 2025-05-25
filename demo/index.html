@@ -318,6 +318,28 @@
                         style="width: 100%; height: 100px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;"></textarea>
                 </div>
             </div>
+            
+            <div class="demo-section">
+                <h2>🧪 ResourceTemplate Testing</h2>
+                
+                <div class="controls">
+                    <input type="text" id="template-pattern" placeholder="Template pattern (e.g., user://{userId}/posts/{postId})" style="width: 300px;">
+                    <button onclick="testResourceTemplate()">Test Template</button>
+                </div>
+                
+                <div class="controls" style="margin-top: 10px;">
+                    <input type="text" id="test-uri" placeholder="Test URI to match (e.g., user://123/posts/456)" style="width: 300px;">
+                    <button onclick="testTemplateMatch()">Test Match</button>
+                </div>
+                
+                <div class="controls" style="margin-top: 10px;">
+                    <input type="text" id="fill-params" placeholder='Parameters JSON (e.g., {"userId": "789", "postId": "abc"})' style="width: 300px;">
+                    <label><input type="checkbox" id="preserve-slashes"> Preserve slashes</label>
+                    <button onclick="testTemplateFill()">Test Fill</button>
+                </div>
+                
+                <div id="template-output" class="output" style="display: none; margin-top: 15px;"></div>
+            </div>
         </div>
 
         <!-- Capabilities Tab -->
@@ -482,6 +504,28 @@
                     }, null, 2)
                 }]
             }));
+            
+        // Demo using ResourceTemplate directly
+        const bookTemplate = new ResourceTemplate('books://{category}/{bookId}', {
+            name: 'Book Resource',
+            description: 'Book information by category and ID',
+            mimeType: 'application/json'
+        });
+        
+        client.resource('books', bookTemplate, async (uri, { category, bookId }) => ({
+            contents: [{
+                uri: uri.href,
+                mimeType: 'application/json',
+                text: JSON.stringify({
+                    id: bookId,
+                    category: category,
+                    title: `Book ${bookId} in ${category}`,
+                    author: 'Demo Author',
+                    year: 2024,
+                    isbn: `978-0-${category.charCodeAt(0)}-${bookId}-1`
+                }, null, 2)
+            }]
+        }));
         
         // Initialize the UI
         window.addEventListener('load', () => {
@@ -908,6 +952,10 @@
                         exampleUris = ['file://readme.txt', 'file://config/app.json', 'file://logs/2024.log'];
                     } else if (pattern === 'api://{version}/endpoints/{endpoint}') {
                         exampleUris = ['api://v1/endpoints/users', 'api://v2/endpoints/products'];
+                    } else if (pattern === 'books://{category}/{bookId}') {
+                        exampleUris = ['books://fiction/1984', 'books://tech/js-guide', 'books://history/ww2'];
+                    } else if (pattern === 'config://{key}') {
+                        exampleUris = ['config://version', 'config://features', 'config://debug'];
                     } else {
                         // Generic example for custom patterns
                         const params = pattern.match(/\{([^}]+)\}/g) || [];
@@ -990,6 +1038,100 @@
             }
         }
 
+        // ResourceTemplate testing functions
+        let currentTemplate = null;
+        
+        window.testResourceTemplate = function() {
+            const pattern = document.getElementById('template-pattern').value;
+            if (!pattern) {
+                alert('Please enter a template pattern');
+                return;
+            }
+            
+            try {
+                currentTemplate = new ResourceTemplate(pattern);
+                const output = document.getElementById('template-output');
+                output.style.display = 'block';
+                output.className = 'output success';
+                output.textContent = `Template created successfully!\n\n` +
+                    `Pattern: ${currentTemplate.pattern}\n` +
+                    `Extracted keys: ${JSON.stringify(currentTemplate.keys)}\n` +
+                    `Name: ${currentTemplate.name || '(not set)'}\n` +
+                    `Description: ${currentTemplate.description || '(not set)'}\n` +
+                    `MIME Type: ${currentTemplate.mimeType || '(not set)'}`;
+            } catch (error) {
+                const output = document.getElementById('template-output');
+                output.style.display = 'block';
+                output.className = 'output error';
+                output.textContent = `Error creating template: ${error.message}`;
+            }
+        };
+        
+        window.testTemplateMatch = function() {
+            if (!currentTemplate) {
+                alert('Please create a template first');
+                return;
+            }
+            
+            const uriString = document.getElementById('test-uri').value;
+            if (!uriString) {
+                alert('Please enter a URI to test');
+                return;
+            }
+            
+            try {
+                const uri = new URL(uriString);
+                const params = currentTemplate.match(uri);
+                
+                const output = document.getElementById('template-output');
+                output.style.display = 'block';
+                
+                if (params) {
+                    output.className = 'output success';
+                    output.textContent = `Match successful!\n\n` +
+                        `Extracted parameters:\n${JSON.stringify(params, null, 2)}`;
+                } else {
+                    output.className = 'output';
+                    output.textContent = `No match - URI does not match the template pattern`;
+                }
+            } catch (error) {
+                const output = document.getElementById('template-output');
+                output.style.display = 'block';
+                output.className = 'output error';
+                output.textContent = `Error: ${error.message}`;
+            }
+        };
+        
+        window.testTemplateFill = function() {
+            if (!currentTemplate) {
+                alert('Please create a template first');
+                return;
+            }
+            
+            const paramsString = document.getElementById('fill-params').value;
+            if (!paramsString) {
+                alert('Please enter parameters JSON');
+                return;
+            }
+            
+            try {
+                const params = JSON.parse(paramsString);
+                const preserveSlashes = document.getElementById('preserve-slashes').checked;
+                const filledUrl = currentTemplate.fill(params, preserveSlashes);
+                
+                const output = document.getElementById('template-output');
+                output.style.display = 'block';
+                output.className = 'output success';
+                output.textContent = `Filled URL: ${filledUrl.href}\n\n` +
+                    `Preserve slashes: ${preserveSlashes}`;
+            } catch (error) {
+                const output = document.getElementById('template-output');
+                output.style.display = 'block';
+                output.className = 'output error';
+                output.textContent = `Error: ${error.message}`;
+            }
+        };
+        
         // Update inputs when selection changes
         document.getElementById('tool-select').addEventListener('change', () => updateToolInputs());
         document.getElementById('prompt-select').addEventListener('change', () => updatePromptInputs());
