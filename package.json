@@ -1,0 +1,17 @@
+{
+  "name": "mcp-self-contained-client",
+  "version": "0.0.0",
+  "description": "A dynamic, in-memory implementation of a Model Context Protocol (MCP) client that allows you to define and manage tools, prompts, and resources locally—without connecting to an external server.",
+  "main": "index.mjs",
+  "types": "types.d.ts",
+  "scripts": {
+    "test": "node --test tests/**/*.test.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "zod": "^3.25.28"
+  }
+}
