@@ -35,6 +35,20 @@ describe('SelfContainedClient', () => {
       });
     });
 
+    test('register tool with description', async () => {
+      const client = new SelfContainedClient({
+        name: 'test-client',
+        version: '1.0.0'
+      });
+
+      client.tool('echo', { description: 'Echoes the message' }, async ({ message }) => ({
+        content: [{ type: 'text', text: `Echo: ${message}` }]
+      }));
+
+      const { tools } = await client.listTools();
+      assert.equal(tools[0].description, 'Echoes the message');
+    });
+
     test('register and call tool with schema', async () => {
       const client = new SelfContainedClient({
         name: 'test-client',
@@ -60,7 +74,7 @@ describe('SelfContainedClient', () => {
       });
     });
 
-    test('tool with invalid schema throws', async () => {
+    test('tool with invalid schema returns error', async () => {
       const client = new SelfContainedClient({
         name: 'test-client',
         version: '1.0.0'
@@ -75,13 +89,14 @@ describe('SelfContainedClient', () => {
         content: [{ type: 'text', text: `${a + b}` }]
       }));
 
-      await assert.rejects(
-        client.callTool({
-          name: 'add',
-          arguments: { a: 'not a number', b: 3 }
-        }),
-        /Expected number/
-      );
+      const result = await client.callTool({
+        name: 'add',
+        arguments: { a: 'not a number', b: 3 }
+      });
+
+      assert.equal(result.isError, true);
+      assert.equal(result.content[0].type, 'text');
+      assert.match(result.content[0].text, /Expected number/);
     });
 
     test('call non-existent tool throws', async () => {
@@ -97,6 +112,25 @@ describe('SelfContainedClient', () => {
         }),
         /Tool 'nonexistent' not found/
       );
+    });
+
+    test('tool that throws returns error result', async () => {
+      const client = new SelfContainedClient({
+        name: 'test-client',
+        version: '1.0.0'
+      });
+
+      client.tool('failing', async () => {
+        throw new Error('Tool failed');
+      });
+
+      const result = await client.callTool({
+        name: 'failing',
+        arguments: {}
+      });
+
+      assert.equal(result.isError, true);
+      assert.equal(result.content[0].text, 'Tool failed');
     });
 
     test('tool with async iterator', async () => {
@@ -125,36 +159,21 @@ describe('SelfContainedClient', () => {
       });
     });
 
-    test('list tools', () => {
+    test('list tools returns proper format', async () => {
       const client = new SelfContainedClient({
         name: 'test-client',
         version: '1.0.0'
       });
 
-      client.tool('tool1', () => {});
-      client.tool('tool2', z.object({ x: z.string() }), () => {});
+      client.tool('tool1', () => ({ content: [] }));
+      client.tool('tool2', { description: 'Tool 2' }, () => ({ content: [] }));
 
-      assert.deepEqual(client.listTools(), ['tool1', 'tool2']);
-      
-      const detailed = client.listTools(true);
-      assert.equal(detailed[0].name, 'tool1');
-      assert.equal(detailed[0].schema, undefined);
-      assert.equal(detailed[1].name, 'tool2');
-      assert.ok(detailed[1].schema);
-    });
-
-    test('describe tool', () => {
-      const client = new SelfContainedClient({
-        name: 'test-client',
-        version: '1.0.0'
-      });
-
-      const schema = z.object({ x: z.string() });
-      client.tool('mytool', schema, () => {});
-
-      const description = client.describeTool('mytool');
-      assert.equal(description.name, 'mytool');
-      assert.equal(description.schema, schema);
+      const result = await client.listTools();
+      assert.ok(result.tools);
+      assert.equal(result.tools.length, 2);
+      assert.equal(result.tools[0].name, 'tool1');
+      assert.equal(result.tools[1].name, 'tool2');
+      assert.equal(result.tools[1].description, 'Tool 2');
     });
 
     test('delete tool', async () => {
@@ -164,10 +183,12 @@ describe('SelfContainedClient', () => {
       });
 
       client.tool('temp', () => ({ content: [] }));
-      assert.deepEqual(client.listTools(), ['temp']);
+      let { tools } = await client.listTools();
+      assert.equal(tools.length, 1);
 
       client.deleteTool('temp');
-      assert.deepEqual(client.listTools(), []);
+      ({ tools } = await client.listTools());
+      assert.equal(tools.length, 0);
 
       await assert.rejects(
         client.callTool({ name: 'temp', arguments: {} }),
@@ -177,7 +198,7 @@ describe('SelfContainedClient', () => {
   });
 
   describe('Prompts', () => {
-    test('register and get prompt without schema', () => {
+    test('register and get prompt without schema', async () => {
       const client = new SelfContainedClient({
         name: 'test-client',
         version: '1.0.0'
@@ -192,7 +213,7 @@ describe('SelfContainedClient', () => {
         ]
       }));
 
-      const result = client.getPrompt({
+      const result = await client.getPrompt({
         name: 'greeting',
         arguments: { name: 'Alice' }
       });
@@ -207,7 +228,43 @@ describe('SelfContainedClient', () => {
       });
     });
 
-    test('register and get prompt with schema', () => {
+    test('register prompt with description and arguments', async () => {
+      const client = new SelfContainedClient({
+        name: 'test-client',
+        version: '1.0.0'
+      });
+
+      client.prompt(
+        'greeting',
+        {
+          description: 'A friendly greeting',
+          arguments: [
+            { name: 'name', description: 'The name to greet', required: true }
+          ]
+        },
+        ({ name }) => ({
+          messages: [
+            {
+              role: 'user',
+              content: { type: 'text', text: `Hello, ${name}!` }
+            }
+          ]
+        })
+      );
+
+      const { prompts } = await client.listPrompts();
+      assert.equal(prompts[0].description, 'A friendly greeting');
+      assert.equal(prompts[0].arguments[0].name, 'name');
+      assert.equal(prompts[0].arguments[0].required, true);
+
+      const result = await client.getPrompt({
+        name: 'greeting',
+        arguments: { name: 'Bob' }
+      });
+      assert.equal(result.description, 'A friendly greeting');
+    });
+
+    test('register and get prompt with schema', async () => {
       const client = new SelfContainedClient({
         name: 'test-client',
         version: '1.0.0'
@@ -227,7 +284,7 @@ describe('SelfContainedClient', () => {
         ]
       }));
 
-      const result = client.getPrompt({
+      const result = await client.getPrompt({
         name: 'intro',
         arguments: { name: 'Bob', age: 25 }
       });
@@ -242,7 +299,7 @@ describe('SelfContainedClient', () => {
       });
     });
 
-    test('prompt with invalid schema throws', () => {
+    test('prompt with invalid schema throws', async () => {
       const client = new SelfContainedClient({
         name: 'test-client',
         version: '1.0.0'
@@ -256,8 +313,8 @@ describe('SelfContainedClient', () => {
         messages: [{ role: 'user', content: { type: 'text', text: `Age: ${age}` } }]
       }));
 
-      assert.throws(
-        () => client.getPrompt({
+      await assert.rejects(
+        client.getPrompt({
           name: 'age-prompt',
           arguments: { age: 'not a number' }
         }),
@@ -265,14 +322,14 @@ describe('SelfContainedClient', () => {
       );
     });
 
-    test('get non-existent prompt throws', () => {
+    test('get non-existent prompt throws', async () => {
       const client = new SelfContainedClient({
         name: 'test-client',
         version: '1.0.0'
       });
 
-      assert.throws(
-        () => client.getPrompt({
+      await assert.rejects(
+        client.getPrompt({
           name: 'nonexistent',
           arguments: {}
         }),
@@ -280,97 +337,110 @@ describe('SelfContainedClient', () => {
       );
     });
 
-    test('list prompts', () => {
+    test('list prompts returns proper format', async () => {
       const client = new SelfContainedClient({
         name: 'test-client',
         version: '1.0.0'
       });
 
       client.prompt('prompt1', () => ({ messages: [] }));
-      client.prompt('prompt2', z.object({ x: z.string() }), () => ({ messages: [] }));
+      client.prompt('prompt2', { description: 'Prompt 2' }, () => ({ messages: [] }));
 
-      assert.deepEqual(client.listPrompts(), ['prompt1', 'prompt2']);
-      
-      const detailed = client.listPrompts(true);
-      assert.equal(detailed[0].name, 'prompt1');
-      assert.equal(detailed[0].schema, undefined);
-      assert.equal(detailed[1].name, 'prompt2');
-      assert.ok(detailed[1].schema);
+      const result = await client.listPrompts();
+      assert.ok(result.prompts);
+      assert.equal(result.prompts.length, 2);
+      assert.equal(result.prompts[0].name, 'prompt1');
+      assert.equal(result.prompts[1].name, 'prompt2');
+      assert.equal(result.prompts[1].description, 'Prompt 2');
     });
 
-    test('describe prompt', () => {
-      const client = new SelfContainedClient({
-        name: 'test-client',
-        version: '1.0.0'
-      });
-
-      const schema = z.object({ x: z.string() });
-      client.prompt('myprompt', schema, () => ({ messages: [] }));
-
-      const description = client.describePrompt('myprompt');
-      assert.equal(description.name, 'myprompt');
-      assert.equal(description.schema, schema);
-    });
-
-    test('delete prompt', () => {
+    test('delete prompt', async () => {
       const client = new SelfContainedClient({
         name: 'test-client',
         version: '1.0.0'
       });
 
       client.prompt('temp', () => ({ messages: [] }));
-      assert.deepEqual(client.listPrompts(), ['temp']);
+      let { prompts } = await client.listPrompts();
+      assert.equal(prompts.length, 1);
 
       client.deletePrompt('temp');
-      assert.deepEqual(client.listPrompts(), []);
+      ({ prompts } = await client.listPrompts());
+      assert.equal(prompts.length, 0);
 
-      assert.throws(
-        () => client.getPrompt({ name: 'temp', arguments: {} }),
+      await assert.rejects(
+        client.getPrompt({ name: 'temp', arguments: {} }),
         /Prompt 'temp' not found/
       );
     });
   });
 
+  describe('Server capabilities', () => {
+    test('getServerCapabilities returns expected structure', () => {
+      const client = new SelfContainedClient({
+        name: 'test-client',
+        version: '1.0.0'
+      });
+
+      const capabilities = client.getServerCapabilities();
+      assert.deepEqual(capabilities, {
+        tools: {},
+        prompts: {},
+        resources: {
+          subscribe: false
+        }
+      });
+    });
+  });
+
   describe('Namespace deletion', () => {
-    test('delete namespace removes all matching entries', () => {
+    test('delete namespace removes all matching entries', async () => {
       const client = new SelfContainedClient({
         name: 'test-client',
         version: '1.0.0'
       });
 
       // Add various entries
-      client.tool('math:add', () => {});
-      client.tool('math:subtract', () => {});
-      client.tool('string:concat', () => {});
+      client.tool('math:add', () => ({ content: [] }));
+      client.tool('math:subtract', () => ({ content: [] }));
+      client.tool('string:concat', () => ({ content: [] }));
       
       client.prompt('math:formula', () => ({ messages: [] }));
       client.prompt('string:template', () => ({ messages: [] }));
 
       // Verify all exist
-      assert.deepEqual(client.listTools().sort(), ['math:add', 'math:subtract', 'string:concat']);
-      assert.deepEqual(client.listPrompts().sort(), ['math:formula', 'string:template']);
+      let { tools } = await client.listTools();
+      let { prompts } = await client.listPrompts();
+      assert.equal(tools.length, 3);
+      assert.equal(prompts.length, 2);
 
       // Delete math namespace
       client.deleteNamespace('math');
 
       // Verify only string entries remain
-      assert.deepEqual(client.listTools(), ['string:concat']);
-      assert.deepEqual(client.listPrompts(), ['string:template']);
+      ({ tools } = await client.listTools());
+      ({ prompts } = await client.listPrompts());
+      assert.equal(tools.length, 1);
+      assert.equal(tools[0].name, 'string:concat');
+      assert.equal(prompts.length, 1);
+      assert.equal(prompts[0].name, 'string:template');
     });
 
-    test('delete namespace with no matches does nothing', () => {
+    test('delete namespace with no matches does nothing', async () => {
       const client = new SelfContainedClient({
         name: 'test-client',
         version: '1.0.0'
       });
 
-      client.tool('tool1', () => {});
+      client.tool('tool1', () => ({ content: [] }));
       client.prompt('prompt1', () => ({ messages: [] }));
 
       client.deleteNamespace('nonexistent');
 
-      assert.deepEqual(client.listTools(), ['tool1']);
-      assert.deepEqual(client.listPrompts(), ['prompt1']);
+      const { tools } = await client.listTools();
+      const { prompts } = await client.listPrompts();
+      assert.equal(tools.length, 1);
+      assert.equal(prompts.length, 1);
     });
   });
 });

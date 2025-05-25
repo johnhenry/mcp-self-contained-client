@@ -2,21 +2,23 @@
 
 A dynamic, in-memory implementation of a Model Context Protocol (MCP) client that allows you to define and manage tools, prompts, and resources locally—without connecting to an external server.
 
-This client fully implements the MCP contract from the client’s perspective, enabling:
+This client fully implements the MCP contract from the client's perspective, enabling:
 
-- Tool execution with optional argument validation
-- Prompt generation based on input parameters
-- Resource resolution based on URI templates
-- Full introspection and deletion capabilities
+- 🔧 Tool execution with argument validation and error handling
+- 💬 Prompt generation with structured messages
+- 🗂️ Resource management with URI template matching
+- ✅ Full TypeScript support with JSDoc annotations
+- 🔍 Introspection capabilities for all registered items
 
 ## ✨ Features
 
 - ✅ No server required – works entirely in-process
 - 🔧 Dynamically add/remove tools, prompts, and resources
 - 🧪 Optional validation via Zod schemas
-- 🔄 Streamable tool/resource outputs (via `for await`)
-- 🧠 Descriptive introspection (`describeTool`, etc.)
-- 🗂️ Namespace-based organization and deletion
+- 🔄 Streamable tool outputs (via async generators)
+- 🧠 Comprehensive introspection and listing methods
+- 🗂️ Namespace-based organization and bulk deletion
+- 🛡️ Error handling that returns MCP-compliant error results
 
 ---
 
@@ -34,113 +36,382 @@ npm install zod
 
 ## 🛠️ Usage
 
-### 1. Create a client
+### Create a Client
 
-```ts
-import {
-  SelfContainedClient,
-  ResourceTemplate,
-} from "./index.mjs";
-import { z } from "zod";
+```js
+import { SelfContainedClient } from "./index.mjs";
 
 const client = new SelfContainedClient({
-  name: "local-client",
+  name: "my-mcp-client",
   version: "1.0.0",
 });
 ```
 
----
+### Tools
 
-### 2. Register a tool
+Tools are functions that can be called with arguments and return content.
 
-```ts
-client.tool("echo", z.object({ message: z.string() }), async ({ message }) => ({
+#### Register a Simple Tool
+
+```js
+client.tool("echo", async ({ message }) => ({
   content: [{ type: "text", text: `Echo: ${message}` }],
 }));
 ```
 
-Call the tool:
+#### Register a Tool with Description
 
-```ts
-const result = await client.callTool({
-  name: "echo",
-  arguments: { message: "hello" },
-});
+```js
+client.tool(
+  "calculate",
+  { description: "Performs basic calculations" },
+  async ({ operation, a, b }) => {
+    const result = operation === "add" ? a + b : a - b;
+    return {
+      content: [{ type: "text", text: `Result: ${result}` }],
+    };
+  }
+);
 ```
 
----
+#### Register a Tool with Zod Validation
 
-### 3. Register a prompt
+```js
+import { z } from "zod";
 
-```ts
-client.prompt("greeting", z.object({ name: z.string() }), ({ name }) => ({
+client.tool(
+  "divide",
+  z.object({
+    dividend: z.number(),
+    divisor: z.number().refine((n) => n !== 0, "Cannot divide by zero"),
+  }),
+  async ({ dividend, divisor }) => ({
+    content: [{ type: "text", text: `${dividend / divisor}` }],
+  })
+);
+```
+
+#### Call a Tool
+
+```js
+const result = await client.callTool({
+  name: "echo",
+  arguments: { message: "Hello, MCP!" },
+});
+// result: { content: [{ type: "text", text: "Echo: Hello, MCP!" }] }
+```
+
+#### List Tools
+
+```js
+const { tools } = await client.listTools();
+// tools: [{ name: "echo" }, { name: "calculate", description: "Performs basic calculations" }]
+```
+
+#### Handle Tool Errors
+
+Tools that throw errors or have validation failures return error results:
+
+```js
+const result = await client.callTool({
+  name: "divide",
+  arguments: { dividend: 10, divisor: 0 },
+});
+// result: { content: [{ type: "text", text: "Cannot divide by zero" }], isError: true }
+```
+
+### Prompts
+
+Prompts generate structured message templates based on arguments.
+
+#### Register a Simple Prompt
+
+```js
+client.prompt("greeting", ({ name }) => ({
   messages: [
     {
       role: "user",
-      content: {
-        type: "text",
-        text: `Hello, ${name}!`,
-      },
+      content: { type: "text", text: `Hello, ${name}!` },
     },
   ],
 }));
+```
 
-const prompt = client.getPrompt({
+#### Register a Prompt with Metadata
+
+```js
+client.prompt(
+  "code-review",
+  {
+    description: "Generate a code review request",
+    arguments: [
+      { name: "language", description: "Programming language", required: true },
+      { name: "code", description: "Code to review", required: true },
+    ],
+  },
+  ({ language, code }) => ({
+    messages: [
+      {
+        role: "system",
+        content: {
+          type: "text",
+          text: `You are a ${language} code reviewer.`,
+        },
+      },
+      {
+        role: "user",
+        content: {
+          type: "text",
+          text: `Please review this code:\n\n${code}`,
+        },
+      },
+    ],
+  })
+);
+```
+
+#### Get a Prompt
+
+```js
+const result = await client.getPrompt({
   name: "greeting",
   arguments: { name: "Alice" },
 });
+// result: { messages: [{ role: "user", content: { type: "text", text: "Hello, Alice!" } }] }
 ```
 
----
+#### List Prompts
 
-### 4. Register a resource
+```js
+const { prompts } = await client.listPrompts();
+// prompts: [{ name: "greeting" }, { name: "code-review", description: "Generate a code review request", arguments: [...] }]
+```
 
-```ts
+### Resources
+
+Resources provide access to content via URI patterns.
+
+#### Register a Simple Resource
+
+```js
+import { ResourceTemplate } from "./index.mjs";
+
 client.resource(
-  "echo-resource",
-  new ResourceTemplate("echo://{message}"),
-  async (uri, { message }) => ({
-    contents: [{ uri: uri.href, text: `Echoed: ${message}` }],
-  }),
-  z.object({ message: z.string() }) // optional
+  "file-content",
+  new ResourceTemplate("file://{path}"),
+  async (uri, { path }) => ({
+    contents: [
+      {
+        uri: uri.href,
+        text: `Contents of ${path}`,
+      },
+    ],
+  })
 );
+```
 
-const res = await client.readResource({
-  uri: "echo://hello",
+#### Register a Resource with Metadata
+
+```js
+client.resource(
+  "api-docs",
+  new ResourceTemplate("docs://{section}/{page}"),
+  {
+    description: "API documentation pages",
+    mimeType: "text/markdown",
+  },
+  async (uri, { section, page }) => ({
+    contents: [
+      {
+        uri: uri.href,
+        mimeType: "text/markdown",
+        text: `# ${section} - ${page}\n\nDocumentation content here...`,
+      },
+    ],
+  })
+);
+```
+
+#### Read a Resource
+
+```js
+const result = await client.readResource({
+  uri: "file://readme.txt",
 });
+// result: { contents: [{ uri: "file://readme.txt", text: "Contents of readme.txt" }] }
+```
+
+#### List Resources and Templates
+
+```js
+// List all resources
+const { resources } = await client.listResources();
+// resources: [{ uri: "file://{path}", name: "file-content" }]
+
+// List resource templates with full details
+const { resourceTemplates } = await client.listResourceTemplates();
+// resourceTemplates: [{ uriTemplate: "docs://{section}/{page}", name: "api-docs", description: "API documentation pages", mimeType: "text/markdown" }]
+```
+
+#### Resource with Binary Content
+
+Resources can return base64-encoded binary data:
+
+```js
+client.resource(
+  "image",
+  new ResourceTemplate("image://{name}"),
+  async (uri, { name }) => ({
+    contents: [
+      {
+        uri: uri.href,
+        mimeType: "image/png",
+        blob: Buffer.from(imageData).toString("base64"),
+      },
+    ],
+  })
+);
+```
+
+### Advanced Features
+
+#### Streaming Tool Output
+
+Tools can return async generators for streaming content:
+
+```js
+client.tool("count", async function* ({ to }) {
+  for (let i = 1; i <= to; i++) {
+    yield { type: "text", text: `Count: ${i}\n` };
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+});
+
+const result = await client.callTool({
+  name: "count",
+  arguments: { to: 5 },
+});
+// result.content will contain all yielded items
+```
+
+#### Namespace Management
+
+Organize tools, prompts, and resources using namespaces:
+
+```js
+// Register namespaced items
+client.tool("math:add", async ({ a, b }) => ({
+  content: [{ type: "text", text: `${a + b}` }],
+}));
+
+client.tool("math:multiply", async ({ a, b }) => ({
+  content: [{ type: "text", text: `${a * b}` }],
+}));
+
+client.tool("string:reverse", async ({ text }) => ({
+  content: [{ type: "text", text: text.split("").reverse().join("") }],
+}));
+
+// Delete entire namespace
+client.deleteNamespace("math"); // Removes math:add and math:multiply
+```
+
+#### Server Capabilities
+
+Get information about what the client supports:
+
+```js
+const capabilities = client.getServerCapabilities();
+// {
+//   tools: {},
+//   prompts: {},
+//   resources: { subscribe: false }
+// }
+```
+
+### Error Handling
+
+The client provides robust error handling:
+
+1. **Tool not found**: Throws an error
+2. **Validation errors**: Returns error result with `isError: true`
+3. **Handler errors**: Returns error result with error message
+4. **Invalid return format**: Throws an error
+
+Example error handling:
+
+```js
+try {
+  const result = await client.callTool({
+    name: "nonexistent",
+    arguments: {},
+  });
+} catch (error) {
+  console.error("Tool not found:", error.message);
+}
+
+// Validation error returns error result
+const result = await client.callTool({
+  name: "divide",
+  arguments: { dividend: "not a number", divisor: 2 },
+});
+if (result.isError) {
+  console.error("Tool error:", result.content[0].text);
+}
 ```
 
 ---
 
-## 🧹 Dynamic Deletion
+## 🔎 API Reference
 
-```ts
-client.deleteTool("echo");
-client.deletePrompt("greeting");
-client.deleteResource("echo-resource");
+### Constructor
 
-client.deleteNamespace("math"); // Removes math:* entries
+```js
+new SelfContainedClient(options: {
+  name: string;
+  version: string;
+})
 ```
 
----
+### Tool Methods
 
-## 🔎 Introspection
+- `tool(name: string, handler: ToolHandler): void`
+- `tool(name: string, options: { description?: string }, handler: ToolHandler): void`
+- `tool(name: string, schema: ZodSchema, handler: ToolHandler): void`
+- `listTools(): Promise<{ tools: Tool[] }>`
+- `callTool(params: { name: string; arguments?: any }): Promise<ToolResult>`
+- `deleteTool(name: string): void`
 
-```ts
-client.listTools(); // ['echo']
-client.describeTool("echo"); // { name: "echo", schema: ... }
+### Prompt Methods
 
-client.listResources(true); // With schema and template
-client.describePrompt("greeting");
-```
+- `prompt(name: string, handler: PromptHandler): void`
+- `prompt(name: string, options: { description?: string; arguments?: PromptArgument[] }, handler: PromptHandler): void`
+- `prompt(name: string, schema: ZodSchema, handler: PromptHandler): void`
+- `listPrompts(): Promise<{ prompts: Prompt[] }>`
+- `getPrompt(params: { name: string; arguments?: any }): Promise<GetPromptResult>`
+- `deletePrompt(name: string): void`
+
+### Resource Methods
+
+- `resource(name: string, uriTemplate: ResourceTemplate, handler: ResourceHandler): void`
+- `resource(name: string, uriTemplate: ResourceTemplate, options: { description?: string; mimeType?: string }, handler: ResourceHandler): void`
+- `resource(name: string, uriTemplate: ResourceTemplate, schema: ZodSchema, handler: ResourceHandler): void`
+- `listResources(): Promise<{ resources: Resource[] }>`
+- `listResourceTemplates(): Promise<{ resourceTemplates: Array }>`
+- `readResource(params: { uri: string }): Promise<ReadResourceResult>`
+- `deleteResource(name: string): void`
+
+### Utility Methods
+
+- `deleteNamespace(prefix: string): void`
+- `getServerCapabilities(): ServerCapabilities`
 
 ---
 
 ## 📁 Files
 
-- `index.mjs`: Main implementation (JavaScript with JSDoc types)
-- `types.d.ts`: TypeScript type definitions
-- `ResourceTemplate`: Mini URI matcher and expander (exported from index.mjs)
+- `index.mjs`: Core JavaScript implementation with JSDoc type annotations
+- `types.d.ts`: TypeScript type definitions for full type safety
 
 ---
 
@@ -148,17 +419,20 @@ client.describePrompt("greeting");
 
 This is ideal for:
 
-- Testing MCP-compatible apps without a backend
+- Testing MCP-compatible applications without a backend
 - Prototyping LLM toolchains or local pipelines
-- Embedding logic-rich assistants in constrained environments (Electron, edge runtimes)
+- Embedding MCP functionality in constrained environments
+- Building mock MCP servers for development
+- Creating dynamic tool/prompt/resource systems
 
 ---
 
 ## 🧩 Future Ideas
 
-- Add support for `promptTemplate()` via string-based prompt definitions (if needed)
-- Embed metadata in prompt/tool/resource declarations (e.g. categories, tags)
-- Optional persistence layer (e.g. IndexedDB, SQLite)
+- Add support for resource subscriptions
+- Implement request/response logging
+- Add middleware support for cross-cutting concerns
+- Support for custom content types beyond text/image
 
 ---
 

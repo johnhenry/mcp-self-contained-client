@@ -5,15 +5,26 @@
  * @typedef {import('./types').ToolEntry} ToolEntry
  * @typedef {import('./types').ResourceEntry} ResourceEntry
  * @typedef {import('./types').PromptEntry} PromptEntry
+ * @typedef {import('./types').Tool} Tool
+ * @typedef {import('./types').Resource} Resource
+ * @typedef {import('./types').Prompt} Prompt
+ * @typedef {import('./types').PromptArgument} PromptArgument
+ * @typedef {import('./types').GetPromptResult} GetPromptResult
+ * @typedef {import('./types').ReadResourceResult} ReadResourceResult
+ * @typedef {import('./types').ToolResult} ToolResult
  */
 
 export class ResourceTemplate {
   /**
    * @param {string} pattern - URI pattern with placeholders like {key}
+   * @param {{ name?: string; description?: string; mimeType?: string }} [options] - Template options
    */
-  constructor(pattern) {
+  constructor(pattern, options = {}) {
     this.pattern = pattern;
     this.keys = [...pattern.matchAll(/\{(.*?)\}/g)].map((m) => m[1]);
+    this.name = options.name;
+    this.description = options.description;
+    this.mimeType = options.mimeType;
   }
 
   /**
@@ -65,113 +76,308 @@ export class SelfContainedClient {
 
   /**
    * Register a tool
+   * @overload
    * @param {string} name - Tool name
-   * @param {import('zod').ZodSchema | ToolHandler} schema - Validation schema or handler
-   * @param {ToolHandler} [handler] - Tool handler function
+   * @param {ToolHandler} handler - Tool handler function
+   * @returns {void}
    */
-  tool(name, schema, handler) {
-    if (!handler) {
-      handler = /** @type {ToolHandler} */ (schema);
-      schema = undefined;
+  /**
+   * @overload
+   * @param {string} name - Tool name
+   * @param {{ description?: string; inputSchema?: Record<string, any> }} options - Tool options
+   * @param {ToolHandler} handler - Tool handler function
+   * @returns {void}
+   */
+  /**
+   * @overload
+   * @param {string} name - Tool name
+   * @param {import('zod').ZodSchema} schema - Validation schema
+   * @param {ToolHandler} handler - Tool handler function
+   * @returns {void}
+   */
+  /**
+   * @overload
+   * @param {string} name - Tool name
+   * @param {{ description?: string; schema?: import('zod').ZodSchema }} options - Tool options with schema
+   * @param {ToolHandler} handler - Tool handler function
+   * @returns {void}
+   */
+  tool(name, optionsOrSchemaOrHandler, handler) {
+    /** @type {ToolEntry} */
+    let entry = { name, handler: null };
+
+    if (typeof optionsOrSchemaOrHandler === 'function') {
+      // tool(name, handler)
+      entry.handler = optionsOrSchemaOrHandler;
+    } else if (handler) {
+      // tool(name, options/schema, handler)
+      entry.handler = handler;
+      if (optionsOrSchemaOrHandler.parse) {
+        // It's a Zod schema
+        entry.schema = optionsOrSchemaOrHandler;
+      } else {
+        // It's options
+        entry.description = optionsOrSchemaOrHandler.description;
+        entry.schema = optionsOrSchemaOrHandler.schema;
+      }
     }
-    this.tools.set(name, { name, schema, handler });
+
+    this.tools.set(name, entry);
   }
 
   /**
    * Register a prompt
+   * @overload
    * @param {string} name - Prompt name
-   * @param {import('zod').ZodSchema | PromptHandler} schema - Validation schema or handler
-   * @param {PromptHandler} [handler] - Prompt handler function
+   * @param {PromptHandler} handler - Prompt handler function
+   * @returns {void}
    */
-  prompt(name, schema, handler) {
-    if (!handler) {
-      handler = /** @type {PromptHandler} */ (schema);
-      schema = undefined;
+  /**
+   * @overload
+   * @param {string} name - Prompt name
+   * @param {{ description?: string; arguments?: PromptArgument[] }} options - Prompt options
+   * @param {PromptHandler} handler - Prompt handler function
+   * @returns {void}
+   */
+  /**
+   * @overload
+   * @param {string} name - Prompt name
+   * @param {import('zod').ZodSchema} schema - Validation schema
+   * @param {PromptHandler} handler - Prompt handler function
+   * @returns {void}
+   */
+  /**
+   * @overload
+   * @param {string} name - Prompt name
+   * @param {{ description?: string; schema?: import('zod').ZodSchema; arguments?: PromptArgument[] }} options - Prompt options with schema
+   * @param {PromptHandler} handler - Prompt handler function
+   * @returns {void}
+   */
+  prompt(name, optionsOrSchemaOrHandler, handler) {
+    /** @type {PromptEntry} */
+    let entry = { name, handler: null };
+
+    if (typeof optionsOrSchemaOrHandler === 'function') {
+      // prompt(name, handler)
+      entry.handler = optionsOrSchemaOrHandler;
+    } else if (handler) {
+      // prompt(name, options/schema, handler)
+      entry.handler = handler;
+      if (optionsOrSchemaOrHandler.parse) {
+        // It's a Zod schema
+        entry.schema = optionsOrSchemaOrHandler;
+      } else {
+        // It's options
+        entry.description = optionsOrSchemaOrHandler.description;
+        entry.schema = optionsOrSchemaOrHandler.schema;
+        entry.arguments = optionsOrSchemaOrHandler.arguments;
+      }
     }
-    this.prompts.set(name, { name, schema, handler });
+
+    this.prompts.set(name, entry);
   }
 
   /**
    * Register a resource
+   * @overload
    * @param {string} name - Resource name
    * @param {ResourceTemplate} uriTemplate - URI template for matching
    * @param {ResourceHandler} handler - Resource handler function
-   * @param {import('zod').ZodSchema} [schema] - Optional validation schema
+   * @returns {void}
    */
-  resource(name, uriTemplate, handler, schema) {
-    this.resources.set(name, { name, uriTemplate, schema, handler });
+  /**
+   * @overload
+   * @param {string} name - Resource name
+   * @param {ResourceTemplate} uriTemplate - URI template for matching
+   * @param {{ description?: string; mimeType?: string }} options - Resource options
+   * @param {ResourceHandler} handler - Resource handler function
+   * @returns {void}
+   */
+  /**
+   * @overload
+   * @param {string} name - Resource name
+   * @param {ResourceTemplate} uriTemplate - URI template for matching
+   * @param {import('zod').ZodSchema} schema - Validation schema
+   * @param {ResourceHandler} handler - Resource handler function
+   * @returns {void}
+   */
+  /**
+   * @overload
+   * @param {string} name - Resource name
+   * @param {ResourceTemplate} uriTemplate - URI template for matching
+   * @param {{ description?: string; mimeType?: string; schema?: import('zod').ZodSchema }} options - Resource options with schema
+   * @param {ResourceHandler} handler - Resource handler function
+   * @returns {void}
+   */
+  resource(name, uriTemplate, optionsOrSchemaOrHandler, handler) {
+    /** @type {ResourceEntry} */
+    let entry = { name, uriTemplate, handler: null };
+
+    if (typeof optionsOrSchemaOrHandler === 'function') {
+      // resource(name, template, handler)
+      entry.handler = optionsOrSchemaOrHandler;
+    } else if (handler) {
+      // resource(name, template, options/schema, handler)
+      entry.handler = handler;
+      if (optionsOrSchemaOrHandler.parse) {
+        // It's a Zod schema
+        entry.schema = optionsOrSchemaOrHandler;
+      } else {
+        // It's options
+        entry.description = optionsOrSchemaOrHandler.description;
+        entry.mimeType = optionsOrSchemaOrHandler.mimeType;
+        entry.schema = optionsOrSchemaOrHandler.schema;
+      }
+    }
+
+    this.resources.set(name, entry);
   }
 
   // -- List Methods --
 
   /**
    * List all registered tools
-   * @param {boolean} [detailed=false] - Whether to include schemas
-   * @returns {string[] | Array<{name: string, schema?: import('zod').ZodSchema}>}
+   * @returns {Promise<{ tools: Tool[] }>}
    */
-  listTools(detailed = false) {
-    return [...this.tools.values()].map((t) =>
-      detailed ? { name: t.name, schema: t.schema } : t.name
-    );
+  async listTools() {
+    const tools = [...this.tools.values()].map((t) => {
+      /** @type {Tool} */
+      const tool = {
+        name: t.name
+      };
+      if (t.description) tool.description = t.description;
+      if (t.schema) {
+        // Convert Zod schema to JSON schema if possible
+        tool.inputSchema = t.schema._def || {};
+      }
+      return tool;
+    });
+    return { tools };
   }
 
   /**
    * List all registered prompts
-   * @param {boolean} [detailed=false] - Whether to include schemas
-   * @returns {string[] | Array<{name: string, schema?: import('zod').ZodSchema}>}
+   * @returns {Promise<{ prompts: Prompt[] }>}
    */
-  listPrompts(detailed = false) {
-    return [...this.prompts.values()].map((p) =>
-      detailed ? { name: p.name, schema: p.schema } : p.name
-    );
+  async listPrompts() {
+    const prompts = [...this.prompts.values()].map((p) => {
+      /** @type {Prompt} */
+      const prompt = {
+        name: p.name
+      };
+      if (p.description) prompt.description = p.description;
+      if (p.arguments) prompt.arguments = p.arguments;
+      return prompt;
+    });
+    return { prompts };
   }
 
   /**
    * List all registered resources
-   * @param {boolean} [detailed=false] - Whether to include schemas
-   * @returns {string[] | Array<{name: string, schema?: import('zod').ZodSchema}>}
+   * @returns {Promise<{ resources: Resource[] }>}
    */
-  listResources(detailed = false) {
-    return [...this.resources.values()].map((r) =>
-      detailed ? { name: r.name, schema: r.schema } : r.name
-    );
+  async listResources() {
+    const resources = [];
+    for (const entry of this.resources.values()) {
+      // For each resource, we could generate example URIs
+      /** @type {Resource} */
+      const resource = {
+        uri: entry.uriTemplate.pattern,
+        name: entry.name
+      };
+      if (entry.description) resource.description = entry.description;
+      if (entry.mimeType) resource.mimeType = entry.mimeType;
+      resources.push(resource);
+    }
+    return { resources };
+  }
+
+  /**
+   * List all resource templates
+   * @returns {Promise<{ resourceTemplates: Array<{ uriTemplate: string; name: string; description?: string; mimeType?: string }> }>}
+   */
+  async listResourceTemplates() {
+    const resourceTemplates = [...this.resources.values()].map((r) => {
+      const template = {
+        uriTemplate: r.uriTemplate.pattern,
+        name: r.name
+      };
+      if (r.description) template.description = r.description;
+      if (r.mimeType) template.mimeType = r.mimeType;
+      return template;
+    });
+    return { resourceTemplates };
   }
 
   // -- Call Methods --
 
   /**
    * Call a tool with arguments
-   * @param {{name: string, arguments: any}} params - Tool name and arguments
-   * @returns {Promise<any>} - Tool execution result
+   * @param {{ name: string; arguments?: any }} params - Tool name and arguments
+   * @returns {Promise<ToolResult>} - Tool execution result
    */
-  async callTool({ name, arguments: args }) {
+  async callTool({ name, arguments: args = {} }) {
     const entry = this.tools.get(name);
     if (!entry) throw new Error(`Tool '${name}' not found`);
-    if (entry.schema) args = entry.schema.parse(args);
-
-    const result = await entry.handler(args);
-    if (Symbol.asyncIterator in result) {
-      const chunks = [];
-      for await (const chunk of result) {
-        chunks.push(chunk);
+    
+    try {
+      // Validate arguments if schema exists
+      if (entry.schema) {
+        args = entry.schema.parse(args);
       }
-      return { content: chunks };
+
+      const result = await entry.handler(args);
+      
+      // Handle async iterators
+      if (result && typeof result === 'object' && Symbol.asyncIterator in result) {
+        const content = [];
+        for await (const chunk of result) {
+          content.push(chunk);
+        }
+        return { content };
+      }
+      
+      // Ensure result has correct format
+      if (!result || !Array.isArray(result.content)) {
+        throw new Error('Tool must return { content: Content[] }');
+      }
+      
+      return result;
+    } catch (error) {
+      // Return error as result
+      return {
+        content: [{
+          type: 'text',
+          text: error.message || 'Tool execution failed'
+        }],
+        isError: true
+      };
     }
-    return result;
   }
 
   /**
    * Read a resource by URI
-   * @param {{uri: string}} params - Resource URI
-   * @returns {Promise<{contents: Array<{uri: string, text: string}>}>}
+   * @param {{ uri: string }} params - Resource URI
+   * @returns {Promise<ReadResourceResult>}
    */
   async readResource({ uri }) {
     const url = new URL(uri);
     for (const entry of this.resources.values()) {
       const params = entry.uriTemplate.match(url);
       if (params) {
-        if (entry.schema) entry.schema.parse(params);
-        return await entry.handler(url, params);
+        // Validate parameters if schema exists
+        if (entry.schema) {
+          entry.schema.parse(params);
+        }
+        
+        const result = await entry.handler(url, params);
+        
+        // Ensure result has correct format
+        if (!result || !Array.isArray(result.contents)) {
+          throw new Error('Resource handler must return { contents: ResourceContents[] }');
+        }
+        
+        return result;
       }
     }
     throw new Error(`No resource matches URI: ${uri}`);
@@ -179,14 +385,31 @@ export class SelfContainedClient {
 
   /**
    * Get a prompt with arguments
-   * @param {{name: string, arguments: any}} params - Prompt name and arguments
-   * @returns {{messages: any[]}} - Generated prompt messages
+   * @param {{ name: string; arguments?: any }} params - Prompt name and arguments
+   * @returns {Promise<GetPromptResult>} - Generated prompt result
    */
-  getPrompt({ name, arguments: args }) {
+  async getPrompt({ name, arguments: args = {} }) {
     const entry = this.prompts.get(name);
     if (!entry) throw new Error(`Prompt '${name}' not found`);
-    if (entry.schema) args = entry.schema.parse(args);
-    return entry.handler(args);
+    
+    // Validate arguments if schema exists
+    if (entry.schema) {
+      args = entry.schema.parse(args);
+    }
+    
+    const result = entry.handler(args);
+    
+    // Ensure result has correct format
+    if (!result || !Array.isArray(result.messages)) {
+      throw new Error('Prompt handler must return { messages: PromptMessage[] }');
+    }
+    
+    // Add description if available
+    if (entry.description && !result.description) {
+      result.description = entry.description;
+    }
+    
+    return result;
   }
 
   // -- Delete Methods --
@@ -229,38 +452,19 @@ export class SelfContainedClient {
     }
   }
 
-  // -- Describe Methods --
+  // -- Server Capabilities --
 
   /**
-   * Get tool details
-   * @param {string} name - Tool name
-   * @returns {{name: string, schema?: import('zod').ZodSchema}}
+   * Get server capabilities
+   * @returns {{ tools?: {}; prompts?: {}; resources?: { subscribe?: boolean } }}
    */
-  describeTool(name) {
-    const entry = this.tools.get(name);
-    if (!entry) throw new Error(`Tool '${name}' not found`);
-    return { name: entry.name, schema: entry.schema };
-  }
-
-  /**
-   * Get prompt details
-   * @param {string} name - Prompt name
-   * @returns {{name: string, schema?: import('zod').ZodSchema}}
-   */
-  describePrompt(name) {
-    const entry = this.prompts.get(name);
-    if (!entry) throw new Error(`Prompt '${name}' not found`);
-    return { name: entry.name, schema: entry.schema };
-  }
-
-  /**
-   * Get resource details
-   * @param {string} name - Resource name
-   * @returns {{name: string, schema?: import('zod').ZodSchema}}
-   */
-  describeResource(name) {
-    const entry = this.resources.get(name);
-    if (!entry) throw new Error(`Resource '${name}' not found`);
-    return { name: entry.name, schema: entry.schema };
+  getServerCapabilities() {
+    return {
+      tools: {},
+      prompts: {},
+      resources: {
+        subscribe: false // We don't support subscriptions in this implementation
+      }
+    };
   }
 }
