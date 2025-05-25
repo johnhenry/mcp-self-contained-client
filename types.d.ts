@@ -111,12 +111,42 @@ export declare class ResourceTemplate {
   fill(params: Record<string, string>): URL;
 }
 
+// Declarative configuration types
+export type DeclarativeToolDefinition = 
+  | [name: string, handler: ToolHandler]
+  | [name: string, schema: Record<string, any> | ZodSchema, handler: ToolHandler]
+  | [name: string, schema: Record<string, any> | ZodSchema, handler: ToolHandler, description: string];
+
+export type DeclarativePromptDefinition = 
+  | [name: string, handler: PromptHandler]
+  | [name: string, schema: Record<string, any> | ZodSchema, handler: PromptHandler]
+  | [name: string, schema: Record<string, any> | ZodSchema, handler: PromptHandler, description: string];
+
+export type DeclarativeResourceDefinition = [
+  name: string,
+  uriPattern: string,
+  handler: ResourceHandler,
+  options?: { description?: string; mimeType?: string }
+] | [
+  name: string,
+  uriPattern: string,
+  schema: Record<string, any> | ZodSchema,
+  handler: ResourceHandler,
+  options?: { description?: string; mimeType?: string }
+];
+
+export type DeclarativeConfig = {
+  tools?: DeclarativeToolDefinition[];
+  prompts?: DeclarativePromptDefinition[];
+  resources?: DeclarativeResourceDefinition[];
+};
+
 // Main client class
 export declare class SelfContainedClient {
   readonly name: string;
   readonly version: string;
   
-  constructor(options: { name: string; version: string });
+  constructor(options: { name: string; version: string }, declarativeConfig?: DeclarativeConfig);
   
   // Tool methods
   tool(name: string, handler: ToolHandler): void;

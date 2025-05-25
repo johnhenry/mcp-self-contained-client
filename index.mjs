@@ -135,8 +135,9 @@ export class ResourceTemplate {
 export class SelfContainedClient {
   /**
    * @param {{ name: string; version: string }} options - Client configuration
+   * @param {import('./types').DeclarativeConfig} [declarativeConfig] - Optional declarative configuration
    */
-  constructor(options) {
+  constructor(options, declarativeConfig) {
     this.name = options.name;
     this.version = options.version;
 
@@ -148,6 +149,106 @@ export class SelfContainedClient {
     
     /** @type {Map<string, PromptEntry>} */
     this.prompts = new Map();
+    
+    // Process declarative configuration if provided
+    if (declarativeConfig) {
+      this._processDeclarativeConfig(declarativeConfig);
+    }
+  }
+
+  /**
+   * Process declarative configuration
+   * @private
+   * @param {import('./types').DeclarativeConfig} config - Declarative configuration
+   */
+  _processDeclarativeConfig(config) {
+    // Process tools
+    if (config.tools && Array.isArray(config.tools)) {
+      for (const toolDef of config.tools) {
+        const [name, ...args] = toolDef;
+        
+        if (args.length === 1) {
+          // [name, handler]
+          this.tool(name, args[0]);
+        } else if (args.length === 2) {
+          // [name, schema, handler]
+          this.tool(name, args[0], args[1]);
+        } else if (args.length === 3) {
+          // [name, schema, handler, description]
+          const schema = args[0];
+          const handler = args[1];
+          const description = args[2];
+          
+          if (schema && typeof schema === 'object' && !schema.parse) {
+            // Plain object schema, convert to options with description
+            this.tool(name, { inputSchema: schema, description }, handler);
+          } else {
+            // Zod schema
+            this.tool(name, { schema, description }, handler);
+          }
+        }
+      }
+    }
+    
+    // Process prompts
+    if (config.prompts && Array.isArray(config.prompts)) {
+      for (const promptDef of config.prompts) {
+        const [name, ...args] = promptDef;
+        
+        if (args.length === 1) {
+          // [name, handler]
+          this.prompt(name, args[0]);
+        } else if (args.length === 2) {
+          // [name, schema, handler]
+          this.prompt(name, args[0], args[1]);
+        } else if (args.length === 3) {
+          // [name, schema, handler, description]
+          const schema = args[0];
+          const handler = args[1];
+          const description = args[2];
+          
+          if (schema && typeof schema === 'object' && !schema.parse) {
+            // Plain object schema, we'll treat it as arguments definition
+            const argNames = Object.keys(schema);
+            const promptArgs = argNames.map(arg => ({
+              name: arg,
+              required: true
+            }));
+            this.prompt(name, { arguments: promptArgs, description }, handler);
+          } else {
+            // Zod schema
+            this.prompt(name, { schema, description }, handler);
+          }
+        }
+      }
+    }
+    
+    // Process resources
+    if (config.resources && Array.isArray(config.resources)) {
+      for (const resourceDef of config.resources) {
+        const [name, uriPattern, ...args] = resourceDef;
+        const template = new ResourceTemplate(uriPattern);
+        
+        if (args.length === 1) {
+          // [name, uriPattern, handler]
+          this.resource(name, template, args[0]);
+        } else if (args.length === 2) {
+          if (typeof args[1] === 'function') {
+            // [name, uriPattern, schema, handler]
+            this.resource(name, template, args[0], args[1]);
+          } else {
+            // [name, uriPattern, handler, options]
+            this.resource(name, template, args[1], args[0]);
+          }
+        } else if (args.length === 3) {
+          // [name, uriPattern, schema, handler, options]
+          const schema = args[0];
+          const handler = args[1];
+          const options = args[2];
+          this.resource(name, template, { ...options, schema }, handler);
+        }
+      }
+    }
   }
 
   /**
