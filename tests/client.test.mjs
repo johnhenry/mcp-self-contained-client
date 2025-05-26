@@ -395,7 +395,8 @@ describe("MCPSelfContainedClient", () => {
         tools: {},
         prompts: {},
         resources: {
-          subscribe: false,
+          subscribe: true,
+          listChanged: true,
         },
       });
     });

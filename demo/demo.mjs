@@ -337,10 +337,83 @@ try {
     console.log("✅ Expected error:", error.message);
   }
 
-  // 9. Server capabilities
+  // 9. Resource Subscriptions
+  console.log("\n📌 Resource Subscriptions");
+  console.log("─".repeat(50));
+
+  // Add a watched resource that simulates changes
+  let counter = 0;
+  let timerWatcher = null;
+  
+  client.resource('live-counter', 'counter://updates',
+    { description: 'Live counter with automatic updates' },
+    async (uri) => ({
+      contents: [{
+        uri: uri.href,
+        mimeType: 'application/json',
+        text: JSON.stringify({
+          count: counter,
+          timestamp: new Date().toISOString()
+        }, null, 2)
+      }]
+    }),
+    // Watcher function - simulates file system or API watching
+    (uri, notifyChange) => {
+      console.log(`Started watching: ${uri}`);
+      timerWatcher = setInterval(() => {
+        counter++;
+        notifyChange();
+      }, 2000);
+      
+      return () => {
+        console.log(`Stopped watching: ${uri}`);
+        if (timerWatcher) clearInterval(timerWatcher);
+      };
+    }
+  );
+
+
+  // Listen for notifications
+  const notifications = [];
+  client.on('notification', (notification) => {
+    notifications.push(notification);
+    console.log(`📡 Notification: ${notification.method}`);
+    if (notification.params.uri) {
+      console.log(`   URI: ${notification.params.uri}`);
+    }
+  });
+
+  // Subscribe to the live resource
+  const subscription = await client.subscribeToResource({ 
+    uri: 'counter://updates' 
+  });
+  console.log(`Subscribed to live counter (ID: ${subscription.subscriberId})`);
+
+  // Wait for a few updates
+  await new Promise(resolve => setTimeout(resolve, 5000));
+
+  // Show current counter value
+  displayResult('Live Counter Current Value',
+    await client.readResource({ uri: 'counter://updates' })
+  );
+
+  console.log(`Received ${notifications.length} notifications`);
+
+  // List active subscriptions
+  const activeSubscriptions = await client.listResourceSubscriptions();
+  console.log('Active subscriptions:', activeSubscriptions.subscriptions.length);
+
+  // Clean up subscription
+  await client.unsubscribeFromResource({ uri: 'counter://updates' });
+  console.log('Unsubscribed from live counter');
+
+  // 10. Server capabilities
   console.log("\n📌 Server Capabilities");
   console.log("─".repeat(50));
   console.log(JSON.stringify(client.getServerCapabilities(), null, 2));
+  
+  // Clean up
+  client.cleanup();
   console.log("\n✨ Demo completed!\n");
 } catch (error) {
   console.error("❌ Demo error:", error);

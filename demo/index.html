@@ -215,6 +215,9 @@
         <button class="tab" onclick="switchTab('capabilities')">
           📋 Capabilities
         </button>
+        <button class="tab" onclick="switchTab('subscriptions')">
+          📡 Subscriptions
+        </button>
       </div>
 
       <!-- Tools Tab -->
@@ -491,6 +494,60 @@
               <h3>📁 Resources</h3>
               <div id="resources-list"></div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Subscriptions Tab -->
+      <div id="subscriptions-tab" class="tab-content">
+        <div class="demo-section">
+          <h2>📡 Resource Subscriptions</h2>
+          
+          <div class="controls">
+            <input
+              type="text"
+              id="subscribe-uri"
+              placeholder="Resource URI to subscribe to"
+              style="width: 300px"
+            />
+            <button type="button" onclick="subscribeToResource()">Subscribe</button>
+          </div>
+          
+          <div style="margin-top: 10px">
+            <button type="button" onclick="refreshSubscriptions()">🔄 Refresh Subscriptions</button>
+            <button type="button" onclick="clearNotifications()">🗑️ Clear Notifications</button>
+          </div>
+          
+          <div style="margin-top: 15px">
+            <h3 style="font-size: 1.1em; margin-bottom: 10px">Active Subscriptions:</h3>
+            <div id="active-subscriptions" style="background: #f8f9fa; padding: 10px; border-radius: 4px; border: 1px solid #dee2e6;">
+              <em>No active subscriptions</em>
+            </div>
+          </div>
+          
+          <div style="margin-top: 15px">
+            <h3 style="font-size: 1.1em; margin-bottom: 10px">Live Notifications:</h3>
+            <div id="live-notifications" style="background: #f8f9fa; padding: 10px; border-radius: 4px; border: 1px solid #dee2e6; max-height: 200px; overflow-y: auto;">
+              <em>No notifications yet</em>
+            </div>
+          </div>
+        </div>
+        
+        <div class="demo-section">
+          <h2>🧪 Test Live Resources</h2>
+          
+          <div class="controls">
+            <button type="button" onclick="createLiveCounter()">Create Live Counter</button>
+            <button type="button" onclick="createSimulatedFile()">Create Simulated File</button>
+            <button type="button" onclick="triggerManualUpdate()">Trigger Manual Update</button>
+          </div>
+          
+          <div style="margin-top: 10px">
+            <h4>Live Counter Resource:</h4>
+            <p>Creates a counter resource that updates every 3 seconds when subscribed to.</p>
+            
+            <h4>Simulated File Resource:</h4>
+            <p>Creates a file resource that you can manually update to test notifications.</p>
           </div>
         </div>
       </div>
@@ -1449,6 +1506,218 @@
           output.textContent = `Error: ${error.message}`;
         }
       };
+
+      // Subscription functions
+      let activeSubscriptions = new Map();
+      let notificationHistory = [];
+
+      async function subscribeToResource() {
+        const uri = document.getElementById("subscription-uri").value;
+        if (!uri) {
+          alert("Please enter a resource URI");
+          return;
+        }
+
+        try {
+          const result = await client.subscribeToResource({ uri });
+          if (result.success) {
+            activeSubscriptions.set(result.subscriberId, { uri, subscriberId: result.subscriberId });
+            await refreshSubscriptions();
+            document.getElementById("subscription-uri").value = "";
+            addNotification(`✅ Subscribed to ${uri}`, "success");
+          } else {
+            addNotification(`❌ Failed to subscribe to ${uri}`, "error");
+          }
+        } catch (error) {
+          addNotification(`❌ Error subscribing: ${error.message}`, "error");
+        }
+      }
+
+      async function refreshSubscriptions() {
+        const subscriptionsList = document.getElementById("active-subscriptions");
+        const subscriptions = Array.from(activeSubscriptions.values());
+        
+        subscriptionsList.innerHTML = subscriptions.length > 0 
+          ? subscriptions.map(sub => `
+              <div class="subscription-item" style="background: #f8f9fa; padding: 10px; margin: 5px 0; border-radius: 4px; border: 1px solid #dee2e6;">
+                <div style="font-weight: bold; color: #2c3e50;">${sub.uri}</div>
+                <div style="font-size: 0.8em; color: #6c757d;">ID: ${sub.subscriberId}</div>
+                <button type="button" onclick="unsubscribeFromResource('${sub.subscriberId}')" 
+                        style="margin-top: 5px; padding: 4px 8px; background: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer;">
+                  Unsubscribe
+                </button>
+              </div>
+            `).join("")
+          : '<div style="text-align: center; color: #6c757d; padding: 20px;">No active subscriptions</div>';
+      }
+
+      async function unsubscribeFromResource(subscriberId) {
+        try {
+          const result = await client.unsubscribeFromResource({ subscriberId });
+          if (result.success) {
+            const subscription = activeSubscriptions.get(subscriberId);
+            activeSubscriptions.delete(subscriberId);
+            await refreshSubscriptions();
+            addNotification(`✅ Unsubscribed from ${subscription?.uri || 'resource'}`, "success");
+          } else {
+            addNotification(`❌ Failed to unsubscribe`, "error");
+          }
+        } catch (error) {
+          addNotification(`❌ Error unsubscribing: ${error.message}`, "error");
+        }
+      }
+
+      function addNotification(message, type = "info") {
+        const timestamp = new Date().toLocaleTimeString();
+        const notification = { timestamp, message, type };
+        notificationHistory.unshift(notification);
+        
+        // Keep only last 50 notifications
+        if (notificationHistory.length > 50) {
+          notificationHistory = notificationHistory.slice(0, 50);
+        }
+        
+        updateNotificationsList();
+      }
+
+      function updateNotificationsList() {
+        const notificationsList = document.getElementById("live-notifications");
+        notificationsList.innerHTML = notificationHistory.length > 0
+          ? notificationHistory.map(notif => `
+              <div class="notification-item" style="background: ${getNotificationColor(notif.type)}; padding: 8px; margin: 3px 0; border-radius: 4px; border: 1px solid #dee2e6;">
+                <div style="font-size: 0.8em; color: #6c757d;">${notif.timestamp}</div>
+                <div style="font-size: 0.9em;">${notif.message}</div>
+              </div>
+            `).join("")
+          : '<div style="text-align: center; color: #6c757d; padding: 20px;">No notifications yet</div>';
+      }
+
+      function getNotificationColor(type) {
+        switch (type) {
+          case "success": return "#d4edda";
+          case "error": return "#f8d7da";
+          case "warning": return "#fff3cd";
+          default: return "#d1ecf1";
+        }
+      }
+
+      function clearNotifications() {
+        notificationHistory = [];
+        updateNotificationsList();
+      }
+
+      // Test resource creation functions
+      let liveCounterInterval = null;
+      let liveCounter = 0;
+
+      async function createLiveCounter() {
+        try {
+          // Add a live counter resource that updates every 2 seconds
+          client.resource('live-counter', 'counter://demo', 
+            { description: 'A live counter that increments every 2 seconds' },
+            async (uri) => ({
+              contents: [{
+                uri: uri.href,
+                mimeType: 'application/json',
+                text: JSON.stringify({
+                  count: liveCounter,
+                  timestamp: new Date().toISOString()
+                }, null, 2)
+              }]
+            }),
+            // Watcher function
+            (uri, notifyChange) => {
+              if (liveCounterInterval) clearInterval(liveCounterInterval);
+              liveCounterInterval = setInterval(() => {
+                liveCounter++;
+                notifyChange();
+              }, 2000);
+              
+              return () => {
+                if (liveCounterInterval) {
+                  clearInterval(liveCounterInterval);
+                  liveCounterInterval = null;
+                }
+              };
+            }
+          );
+
+          await refreshCapabilities();
+          await updateResourceExamples();
+          addNotification("✅ Live counter resource created", "success");
+        } catch (error) {
+          addNotification(`❌ Error creating live counter: ${error.message}`, "error");
+        }
+      }
+
+      let simulatedFileContent = "Initial content";
+      let simulatedFileTimeout = null;
+
+      async function createSimulatedFile() {
+        try {
+          // Add a simulated file that changes content randomly
+          client.resource('simulated-file', 'file://demo/content.txt',
+            { description: 'A simulated file with changing content' },
+            async (uri) => ({
+              contents: [{
+                uri: uri.href,
+                mimeType: 'text/plain',
+                text: simulatedFileContent
+              }]
+            }),
+            // Watcher function
+            (uri, notifyChange) => {
+              const updateContent = () => {
+                const updates = [
+                  "Updated content from background process",
+                  "File modified by external system",
+                  "New data written to file",
+                  "Content synchronized from remote",
+                  "Automatic backup completed"
+                ];
+                simulatedFileContent = updates[Math.floor(Math.random() * updates.length)] + 
+                  ` at ${new Date().toISOString()}`;
+                notifyChange();
+                
+                // Schedule next update in 3-8 seconds
+                simulatedFileTimeout = setTimeout(updateContent, 3000 + Math.random() * 5000);
+              };
+              
+              // Start random updates
+              simulatedFileTimeout = setTimeout(updateContent, 3000);
+              
+              return () => {
+                if (simulatedFileTimeout) {
+                  clearTimeout(simulatedFileTimeout);
+                  simulatedFileTimeout = null;
+                }
+              };
+            }
+          );
+
+          await refreshCapabilities();
+          await updateResourceExamples();
+          addNotification("✅ Simulated file resource created", "success");
+        } catch (error) {
+          addNotification(`❌ Error creating simulated file: ${error.message}`, "error");
+        }
+      }
+
+      function triggerManualUpdate() {
+        // Manually trigger an update for demonstration
+        liveCounter += 10;
+        simulatedFileContent = `Manually updated at ${new Date().toISOString()}`;
+        addNotification("🔄 Manual update triggered", "info");
+      }
+
+      // Listen for resource notifications
+      client.on('notification', (notification) => {
+        if (notification.method === 'notifications/resources/updated') {
+          addNotification(`🔄 Resource updated: ${notification.params.uri}`, "info");
+        } else if (notification.method === 'notifications/resources/list_changed') {
+          addNotification(`📋 Resource list changed`, "info");
+        }
+      });
 
       // Update inputs when selection changes
       document

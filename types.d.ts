@@ -223,26 +223,29 @@ export declare class MCPSelfContainedClient {
   // Resource methods
   resource(
     name: string,
-    uriTemplate: ResourceTemplate,
+    uriTemplate: string | ResourceTemplate,
     handler: ResourceHandler
   ): void;
   resource(
     name: string,
-    uriTemplate: ResourceTemplate,
+    uriTemplate: string | ResourceTemplate,
     options: { description?: string; mimeType?: string },
-    handler: ResourceHandler
+    handler: ResourceHandler,
+    watcher?: ResourceWatcher
   ): void;
   resource(
     name: string,
-    uriTemplate: ResourceTemplate,
+    uriTemplate: string | ResourceTemplate,
     schema: ZodSchema,
-    handler: ResourceHandler
+    handler: ResourceHandler,
+    watcher?: ResourceWatcher
   ): void;
   resource(
     name: string,
-    uriTemplate: ResourceTemplate,
+    uriTemplate: string | ResourceTemplate,
     options: { description?: string; mimeType?: string; schema?: ZodSchema },
-    handler: ResourceHandler
+    handler: ResourceHandler,
+    watcher?: ResourceWatcher
   ): void;
 
   listResources(): Promise<{ resources: Resource[] }>;
@@ -264,6 +267,41 @@ export declare class MCPSelfContainedClient {
   getServerCapabilities(): {
     tools?: {};
     prompts?: {};
-    resources?: { subscribe?: boolean };
+    resources?: { subscribe?: boolean; listChanged?: boolean };
   };
+
+  // Resource subscription methods
+  subscribeToResource(params: { uri: string }): Promise<ResourceSubscriptionResult>;
+  unsubscribeFromResource(params: { 
+    uri: string; 
+    subscriberId?: string 
+  }): Promise<ResourceSubscriptionResult>;
+  listResourceSubscriptions(): Promise<{ 
+    subscriptions: Array<{ uri: string; subscriberCount: number }> 
+  }>;
+  notifyResourceChanged(uri: string): void;
+  cleanup(): void;
+
+  // Event emitter methods
+  on(event: 'notification', listener: (notification: ResourceNotification) => void): this;
+  emit(event: 'notification', notification: ResourceNotification): boolean;
+  removeAllListeners(): this;
 }
+
+// Resource subscription types
+export type ResourceWatcher = (
+  uri: string, 
+  notifyChange: () => void
+) => (() => void) | void;
+
+export type ResourceSubscriptionResult = {
+  success: boolean;
+  subscriberId?: string;
+};
+
+export type ResourceNotification = {
+  method: 'notifications/resources/updated' | 'notifications/resources/list_changed';
+  params: {
+    uri?: string;
+  };
+};

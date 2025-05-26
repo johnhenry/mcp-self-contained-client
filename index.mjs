@@ -12,7 +12,12 @@
  * @typedef {import('./types').GetPromptResult} GetPromptResult
  * @typedef {import('./types').ReadResourceResult} ReadResourceResult
  * @typedef {import('./types').ToolResult} ToolResult
+ * @typedef {import('./types').ResourceWatcher} ResourceWatcher
+ * @typedef {import('./types').ResourceSubscriptionResult} ResourceSubscriptionResult
+ * @typedef {import('./types').ResourceNotification} ResourceNotification
  */
+
+import { EventEmitter } from 'events';
 
 // Helper to normalize registration entries
 const normalizeEntry = (name, optionsOrSchemaOrHandler, handler) => {
@@ -116,7 +121,9 @@ export class ResourceTemplate {
         "$"
     );
     const match = uri.href.match(templateRegex);
-    return match?.groups ?? null;
+    if (!match) return null;
+    // For patterns without placeholders, groups will be undefined, so return empty object
+    return match.groups ?? {};
   }
 
   /**
@@ -137,12 +144,13 @@ export class ResourceTemplate {
   }
 }
 
-export class MCPSelfContainedClient {
+export class MCPSelfContainedClient extends EventEmitter {
   /**
    * @param {{ name: string; version: string }} options - Client configuration
    * @param {import('./types').DeclarativeConfig} [declarativeConfig] - Optional declarative configuration
    */
   constructor(options, declarativeConfig) {
+    super();
     this.name = options.name;
     this.version = options.version;
 
@@ -154,6 +162,15 @@ export class MCPSelfContainedClient {
 
     /** @type {Map<string, PromptEntry>} */
     this.prompts = new Map();
+
+    /** @type {Map<string, Set<string>>} */
+    this.resourceSubscriptions = new Map(); // URI -> Set of subscriber IDs
+
+    /** @type {Map<string, Function>} */
+    this.resourceWatchers = new Map(); // resourceName -> cleanup function
+
+    /** @type {Map<string, Function>} */
+    this.activeWatchers = new Map(); // URI -> cleanup function
 
     // Process declarative configuration if provided
     if (declarativeConfig) {
@@ -354,14 +371,38 @@ export class MCPSelfContainedClient {
    * @param {ResourceHandler} handler - Resource handler function
    * @returns {void}
    */
-  resource(name, uriTemplate, optionsOrSchemaOrHandler, handler) {
-    const entry = normalizeEntry(name, optionsOrSchemaOrHandler, handler);
+  resource(name, uriTemplate, optionsOrSchemaOrHandler, handler, watcher) {
+    // Handle different argument patterns
+    let actualHandler = handler;
+    let actualWatcher = watcher;
+    
+    // If handler is undefined, it means watcher was passed as the 4th argument
+    if (!handler && typeof optionsOrSchemaOrHandler === 'function') {
+      // Pattern: resource(name, template, handler, watcher)
+      actualHandler = optionsOrSchemaOrHandler;
+      actualWatcher = handler; // This is actually the watcher
+      optionsOrSchemaOrHandler = undefined;
+    } else if (typeof handler === 'function' && !watcher) {
+      // Pattern: resource(name, template, options, handler) - no watcher
+      actualHandler = handler;
+      actualWatcher = undefined;
+    }
+    
+    const entry = normalizeEntry(name, optionsOrSchemaOrHandler, actualHandler);
     // Convert string patterns to ResourceTemplate instances
     entry.uriTemplate =
       typeof uriTemplate === "string"
         ? new ResourceTemplate(uriTemplate)
         : uriTemplate;
     this.resources.set(name, entry);
+    
+    // Register watcher if provided
+    if (actualWatcher) {
+      this.resourceWatchers.set(name, actualWatcher);
+    }
+    
+    // Notify list changed
+    this._notifyResourceListChanged();
   }
 
   // -- List Methods --
@@ -584,15 +625,156 @@ export class MCPSelfContainedClient {
 
   /**
    * Get server capabilities
-   * @returns {{ tools?: {}; prompts?: {}; resources?: { subscribe?: boolean } }}
+   * @returns {{ tools?: {}; prompts?: {}; resources?: { subscribe?: boolean; listChanged?: boolean } }}
    */
   getServerCapabilities() {
     return {
       tools: {},
       prompts: {},
       resources: {
-        subscribe: false, // We don't support subscriptions in this implementation
+        subscribe: true,      // Support resource subscriptions
+        listChanged: true     // Support list change notifications
       },
     };
+  }
+
+  // -- Resource Subscription Methods --
+
+  /**
+   * Subscribe to resource changes
+   * @param {{ uri: string }} params - Resource URI to subscribe to
+   * @returns {Promise<ResourceSubscriptionResult>}
+   */
+  async subscribeToResource({ uri }) {
+    const subscriberId = `sub_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+    
+    if (!this.resourceSubscriptions.has(uri)) {
+      this.resourceSubscriptions.set(uri, new Set());
+      
+      // Start watching this resource if we have a watcher
+      const resourceName = this._findResourceNameByUri(uri);
+      if (resourceName && this.resourceWatchers.has(resourceName)) {
+        const watcher = this.resourceWatchers.get(resourceName);
+        const cleanup = watcher(uri, () => this._notifyResourceUpdated(uri));
+        if (cleanup && typeof cleanup === 'function') {
+          this.activeWatchers.set(uri, cleanup);
+        }
+      }
+    }
+    
+    this.resourceSubscriptions.get(uri).add(subscriberId);
+    
+    return { success: true, subscriberId };
+  }
+
+  /**
+   * Unsubscribe from resource changes
+   * @param {{ uri: string, subscriberId?: string }} params
+   * @returns {Promise<ResourceSubscriptionResult>}
+   */
+  async unsubscribeFromResource({ uri, subscriberId }) {
+    const subscribers = this.resourceSubscriptions.get(uri);
+    if (!subscribers) return { success: false };
+    
+    if (subscriberId) {
+      subscribers.delete(subscriberId);
+    } else {
+      subscribers.clear();
+    }
+    
+    // If no more subscribers, stop watching
+    if (subscribers.size === 0) {
+      this.resourceSubscriptions.delete(uri);
+      const cleanup = this.activeWatchers.get(uri);
+      if (cleanup) {
+        cleanup();
+        this.activeWatchers.delete(uri);
+      }
+    }
+    
+    return { success: true };
+  }
+
+  /**
+   * Get list of resource subscriptions
+   * @returns {Promise<{ subscriptions: Array<{ uri: string; subscriberCount: number }> }>}
+   */
+  async listResourceSubscriptions() {
+    const subscriptions = [];
+    for (const [uri, subscribers] of this.resourceSubscriptions.entries()) {
+      subscriptions.push({
+        uri,
+        subscriberCount: subscribers.size
+      });
+    }
+    return { subscriptions };
+  }
+
+  // -- Private Subscription Helper Methods --
+
+  /**
+   * Find resource name by URI
+   * @private
+   * @param {string} uri - Resource URI
+   * @returns {string | null} - Resource name or null if not found
+   */
+  _findResourceNameByUri(uri) {
+    const url = new URL(uri);
+    for (const [name, entry] of this.resources.entries()) {
+      const params = entry.uriTemplate.match(url);
+      if (params) {
+        return name;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Notify subscribers of resource changes
+   * @private
+   * @param {string} uri - Resource URI that changed
+   */
+  _notifyResourceUpdated(uri) {
+    const subscribers = this.resourceSubscriptions.get(uri);
+    if (subscribers && subscribers.size > 0) {
+      this.emit('notification', {
+        method: 'notifications/resources/updated',
+        params: { uri }
+      });
+    }
+  }
+
+  /**
+   * Notify of resource list changes
+   * @private
+   */
+  _notifyResourceListChanged() {
+    this.emit('notification', {
+      method: 'notifications/resources/list_changed',
+      params: {}
+    });
+  }
+
+  /**
+   * Manually trigger a resource update notification
+   * @param {string} uri - Resource URI to notify about
+   */
+  notifyResourceChanged(uri) {
+    this._notifyResourceUpdated(uri);
+  }
+
+  /**
+   * Clean up all subscriptions and watchers
+   */
+  cleanup() {
+    // Clean up all active watchers
+    for (const cleanup of this.activeWatchers.values()) {
+      if (typeof cleanup === 'function') {
+        cleanup();
+      }
+    }
+    this.activeWatchers.clear();
+    this.resourceSubscriptions.clear();
+    this.removeAllListeners();
   }
 }
