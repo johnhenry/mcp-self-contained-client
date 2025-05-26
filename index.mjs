@@ -17,7 +17,8 @@
  * @typedef {import('./types').ResourceNotification} ResourceNotification
  */
 
-import { EventEmitter } from 'events';
+import { EventEmitter } from "events";
+const SUPPORTED_VERSION = "2024-11-05"; // Current MCP protocol version
 
 // Helper to normalize registration entries
 const normalizeEntry = (name, optionsOrSchemaOrHandler, handler) => {
@@ -376,21 +377,25 @@ export class MCPSelfContainedClient extends EventEmitter {
     let actualHandler = handler;
     let actualWatcher = watcher;
     let actualOptions = optionsOrSchemaOrHandler;
-    
+
     // Determine the pattern based on argument types
-    if (typeof optionsOrSchemaOrHandler === 'function' && typeof handler === 'function' && !watcher) {
+    if (
+      typeof optionsOrSchemaOrHandler === "function" &&
+      typeof handler === "function" &&
+      !watcher
+    ) {
       // Pattern: resource(name, template, handler, watcher)
       actualHandler = optionsOrSchemaOrHandler;
       actualWatcher = handler;
       actualOptions = undefined;
-    } else if (typeof optionsOrSchemaOrHandler === 'function' && !handler) {
+    } else if (typeof optionsOrSchemaOrHandler === "function" && !handler) {
       // Pattern: resource(name, template, handler)
       actualHandler = optionsOrSchemaOrHandler;
       actualWatcher = undefined;
       actualOptions = undefined;
     }
     // Otherwise it's: resource(name, template, options, handler, [watcher])
-    
+
     const entry = normalizeEntry(name, actualOptions, actualHandler);
     // Convert string patterns to ResourceTemplate instances
     entry.uriTemplate =
@@ -398,12 +403,12 @@ export class MCPSelfContainedClient extends EventEmitter {
         ? new ResourceTemplate(uriTemplate)
         : uriTemplate;
     this.resources.set(name, entry);
-    
+
     // Register watcher if provided
     if (actualWatcher) {
       this.resourceWatchers.set(name, actualWatcher);
     }
-    
+
     // Notify list changed
     this._notifyResourceListChanged();
   }
@@ -419,7 +424,7 @@ export class MCPSelfContainedClient extends EventEmitter {
       /** @type {Tool} */
       const tool = {
         name: t.name,
-        inputSchema: { type: "object" } // Default empty object schema
+        inputSchema: { type: "object" }, // Default empty object schema
       };
       if (t.description) tool.description = t.description;
       if (t.schema) {
@@ -636,8 +641,8 @@ export class MCPSelfContainedClient extends EventEmitter {
       tools: {},
       prompts: {},
       resources: {
-        subscribe: true,      // Support resource subscriptions
-        listChanged: true     // Support list change notifications
+        subscribe: true, // Support resource subscriptions
+        listChanged: true, // Support list change notifications
       },
     };
   }
@@ -652,21 +657,21 @@ export class MCPSelfContainedClient extends EventEmitter {
   async subscribeToResource({ uri }) {
     if (!this.resourceSubscriptions.has(uri)) {
       this.resourceSubscriptions.set(uri, new Set());
-      
+
       // Start watching this resource if we have a watcher
       const resourceName = this._findResourceNameByUri(uri);
       if (resourceName && this.resourceWatchers.has(resourceName)) {
         const watcher = this.resourceWatchers.get(resourceName);
         const cleanup = watcher(uri, () => this._notifyResourceUpdated(uri));
-        if (cleanup && typeof cleanup === 'function') {
+        if (cleanup && typeof cleanup === "function") {
           this.activeWatchers.set(uri, cleanup);
         }
       }
     }
-    
+
     // Add a generic subscriber
-    this.resourceSubscriptions.get(uri).add('client');
-    
+    this.resourceSubscriptions.get(uri).add("client");
+
     // Return subscription object that includes the URI
     return { _meta: { uri } };
   }
@@ -680,20 +685,20 @@ export class MCPSelfContainedClient extends EventEmitter {
     // Handle both direct URI and _meta.uri formats
     const uri = params.uri || params._meta?.uri;
     if (!uri) return {};
-    
+
     const subscribers = this.resourceSubscriptions.get(uri);
     if (!subscribers) return {};
-    
+
     // Remove all subscribers for this URI
     this.resourceSubscriptions.delete(uri);
-    
+
     // Stop watching
     const cleanup = this.activeWatchers.get(uri);
     if (cleanup) {
       cleanup();
       this.activeWatchers.delete(uri);
     }
-    
+
     return {};
   }
 
@@ -706,7 +711,7 @@ export class MCPSelfContainedClient extends EventEmitter {
     for (const [uri, subscribers] of this.resourceSubscriptions.entries()) {
       subscriptions.push({
         uri,
-        subscriberCount: subscribers.size
+        subscriberCount: subscribers.size,
       });
     }
     return { subscriptions };
@@ -739,9 +744,9 @@ export class MCPSelfContainedClient extends EventEmitter {
   _notifyResourceUpdated(uri) {
     const subscribers = this.resourceSubscriptions.get(uri);
     if (subscribers && subscribers.size > 0) {
-      this.emit('notification', {
-        method: 'notifications/resources/updated',
-        params: { uri }
+      this.emit("notification", {
+        method: "notifications/resources/updated",
+        params: { uri },
       });
     }
   }
@@ -751,9 +756,9 @@ export class MCPSelfContainedClient extends EventEmitter {
    * @private
    */
   _notifyResourceListChanged() {
-    this.emit('notification', {
-      method: 'notifications/resources/list_changed',
-      params: {}
+    this.emit("notification", {
+      method: "notifications/resources/list_changed",
+      params: {},
     });
   }
 
@@ -771,7 +776,7 @@ export class MCPSelfContainedClient extends EventEmitter {
   cleanup() {
     // Clean up all active watchers
     for (const cleanup of this.activeWatchers.values()) {
-      if (typeof cleanup === 'function') {
+      if (typeof cleanup === "function") {
         cleanup();
       }
     }
@@ -810,18 +815,18 @@ export class MCPSelfContainedClient extends EventEmitter {
    */
   async _handleMessage(message) {
     try {
-      if ('method' in message && 'id' in message) {
+      if ("method" in message && "id" in message) {
         // This is a request
         await this._handleRequest(message);
-      } else if ('method' in message && !('id' in message)) {
+      } else if ("method" in message && !("id" in message)) {
         // This is a notification
         await this._handleNotification(message);
-      } else if ('result' in message || 'error' in message) {
+      } else if ("result" in message || "error" in message) {
         // This is a response to our request
         this._handleResponse(message);
       }
     } catch (error) {
-      console.error('Error handling message:', error);
+      this._handleError(error);
     }
   }
 
@@ -833,48 +838,48 @@ export class MCPSelfContainedClient extends EventEmitter {
   async _handleRequest(request) {
     try {
       let result;
-      
+
       switch (request.method) {
-        case 'initialize':
+        case "initialize":
           result = await this._handleInitialize(request.params);
           break;
-        
-        case 'tools/list':
+
+        case "tools/list":
           result = await this.listTools();
           break;
-        
-        case 'tools/call':
+
+        case "tools/call":
           result = await this.callTool(request.params);
           break;
-        
-        case 'prompts/list':
+
+        case "prompts/list":
           result = await this.listPrompts();
           break;
-        
-        case 'prompts/get':
+
+        case "prompts/get":
           result = await this.getPrompt(request.params);
           break;
-        
-        case 'resources/list':
+
+        case "resources/list":
           result = await this.listResources();
           break;
-        
-        case 'resources/templates/list':
+
+        case "resources/templates/list":
           result = await this.listResourceTemplates();
           break;
-        
-        case 'resources/read':
+
+        case "resources/read":
           result = await this.readResource(request.params);
           break;
-        
-        case 'resources/subscribe':
+
+        case "resources/subscribe":
           result = await this.subscribeToResource(request.params);
           break;
-        
-        case 'resources/unsubscribe':
+
+        case "resources/unsubscribe":
           result = await this.unsubscribeFromResource(request.params);
           break;
-        
+
         default:
           throw new Error(`Unknown method: ${request.method}`);
       }
@@ -894,10 +899,10 @@ export class MCPSelfContainedClient extends EventEmitter {
    */
   async _handleNotification(notification) {
     switch (notification.method) {
-      case 'initialized':
+      case "initialized":
         this._initialized = true;
         break;
-      case 'cancelled':
+      case "cancelled":
         // Handle request cancellation if needed
         break;
     }
@@ -912,7 +917,7 @@ export class MCPSelfContainedClient extends EventEmitter {
     const pending = this._pendingRequests.get(response.id);
     if (pending) {
       this._pendingRequests.delete(response.id);
-      if ('result' in response) {
+      if ("result" in response) {
         pending.resolve(response.result);
       } else {
         pending.reject(new Error(response.error.message));
@@ -926,8 +931,7 @@ export class MCPSelfContainedClient extends EventEmitter {
    * @param {Error} error
    */
   _handleError(error) {
-    console.error('Transport error:', error);
-    this.emit('error', error);
+    this.emit("error", error);
   }
 
   /**
@@ -937,11 +941,11 @@ export class MCPSelfContainedClient extends EventEmitter {
   _handleClose() {
     // Reject all pending requests
     for (const pending of this._pendingRequests.values()) {
-      pending.reject(new Error('Transport closed'));
+      pending.reject(new Error("Transport closed"));
     }
     this._pendingRequests.clear();
     this.cleanup();
-    this.emit('close');
+    this.emit("close");
   }
 
   /**
@@ -953,16 +957,16 @@ export class MCPSelfContainedClient extends EventEmitter {
   async _handleInitialize(params) {
     // Validate protocol version
     const clientVersion = params.protocolVersion;
-    const supportedVersion = "2024-11-05"; // Current MCP protocol version
-    
+
     // For now, we'll accept any version and return our supported version
     return {
-      protocolVersion: supportedVersion,
+      protocolVersion: SUPPORTED_VERSION,
+      clientVersion,
       capabilities: this.getServerCapabilities(),
       serverInfo: {
         name: this.name,
-        version: this.version
-      }
+        version: this.version,
+      },
     };
   }
 
@@ -974,13 +978,13 @@ export class MCPSelfContainedClient extends EventEmitter {
    */
   async _sendResponse(id, result) {
     if (!this.transport) return;
-    
+
     const response = {
       jsonrpc: "2.0",
       id,
-      result
+      result,
     };
-    
+
     await this.transport.send(response);
   }
 
@@ -994,17 +998,17 @@ export class MCPSelfContainedClient extends EventEmitter {
    */
   async _sendError(id, code, message, data) {
     if (!this.transport) return;
-    
+
     const response = {
       jsonrpc: "2.0",
       id,
       error: {
         code,
         message,
-        data
-      }
+        data,
+      },
     };
-    
+
     await this.transport.send(response);
   }
 
@@ -1016,13 +1020,13 @@ export class MCPSelfContainedClient extends EventEmitter {
    */
   async _sendNotification(method, params) {
     if (!this.transport) return;
-    
+
     const notification = {
       jsonrpc: "2.0",
       method,
-      params
+      params,
     };
-    
+
     await this.transport.send(notification);
   }
 
@@ -1033,13 +1037,13 @@ export class MCPSelfContainedClient extends EventEmitter {
    */
   _notifyResourceUpdated(uri) {
     const notification = {
-      method: 'notifications/resources/updated',
-      params: { uri }
+      method: "notifications/resources/updated",
+      params: { uri },
     };
-    
+
     // Emit local event
-    this.emit('notification', notification);
-    
+    this.emit("notification", notification);
+
     // Send via transport if connected (removed _initialized check for notifications)
     if (this.transport) {
       this._sendNotification(notification.method, notification.params);
@@ -1052,17 +1056,16 @@ export class MCPSelfContainedClient extends EventEmitter {
    */
   _notifyResourceListChanged() {
     const notification = {
-      method: 'notifications/resources/list_changed',
-      params: {}
+      method: "notifications/resources/list_changed",
+      params: {},
     };
-    
+
     // Emit local event
-    this.emit('notification', notification);
-    
+    this.emit("notification", notification);
+
     // Send via transport if connected (removed _initialized check for notifications)
     if (this.transport) {
       this._sendNotification(notification.method, notification.params);
     }
   }
 }
-
