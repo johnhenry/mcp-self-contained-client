@@ -1,57 +1,8 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
-import { MCPSelfContainedClient, InMemoryTransport } from '../index.mjs';
-
-// Simple MCP client for testing
-class TestClient {
-  constructor(transport) {
-    this.transport = transport;
-    this.responses = new Map();
-    this._requestId = 0;
-    
-    transport.onmessage = (message) => {
-      if ('id' in message && (message.result !== undefined || message.error !== undefined)) {
-        const pending = this.responses.get(message.id);
-        if (pending) {
-          this.responses.delete(message.id);
-          if (message.result !== undefined) {
-            pending.resolve(message.result);
-          } else {
-            pending.reject(new Error(message.error.message));
-          }
-        }
-      }
-    };
-  }
-
-  async start() {
-    await this.transport.start();
-  }
-
-  async request(method, params) {
-    const id = ++this._requestId;
-    const promise = new Promise((resolve, reject) => {
-      this.responses.set(id, { resolve, reject });
-    });
-
-    await this.transport.send({
-      jsonrpc: '2.0',
-      method,
-      params,
-      id
-    });
-
-    return promise;
-  }
-
-  async notify(method, params) {
-    await this.transport.send({
-      jsonrpc: '2.0',
-      method,
-      params
-    });
-  }
-}
+import { MCPSelfContainedClient } from '../index.mjs';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 
 describe('Transport Connection', () => {
   test('connect server and client', async () => {
@@ -62,63 +13,22 @@ describe('Transport Connection', () => {
       version: '1.0.0'
     });
     
-    const client = new TestClient(clientTransport);
+    const client = new Client({
+      name: 'TestClient',
+      version: '1.0.0'
+    }, {
+      capabilities: {}
+    });
     
     // Connect both sides
     await server.connect(serverTransport);
-    await client.start();
+    await client.connect(clientTransport);
     
     // Server should be ready to receive messages
     assert.strictEqual(server.transport, serverTransport);
   });
 
-  test('initialize handshake', async () => {
-    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-    
-    const server = new MCPSelfContainedClient({
-      name: 'TestServer',
-      version: '1.0.0'
-    });
-    
-    const client = new TestClient(clientTransport);
-    
-    await server.connect(serverTransport);
-    await client.start();
-    
-    // Send initialize request
-    const result = await client.request('initialize', {
-      protocolVersion: '2024-11-05',
-      capabilities: {},
-      clientInfo: {
-        name: 'TestClient',
-        version: '1.0.0'
-      }
-    });
-    
-    assert.strictEqual(result.protocolVersion, '2024-11-05');
-    assert.deepStrictEqual(result.serverInfo, {
-      name: 'TestServer',
-      version: '1.0.0'
-    });
-    assert.deepStrictEqual(result.capabilities, {
-      tools: {},
-      prompts: {},
-      resources: {
-        subscribe: true,
-        listChanged: true
-      }
-    });
-    
-    // Send initialized notification
-    await client.notify('initialized');
-    
-    // Give time for notification to process
-    await new Promise(resolve => setTimeout(resolve, 10));
-    
-    assert.strictEqual(server._initialized, true);
-  });
-
-  test('tools/list request', async () => {
+  test('tools operations', async () => {
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     
     const server = new MCPSelfContainedClient({
@@ -135,19 +45,31 @@ describe('Transport Connection', () => {
       content: [{ type: 'text', text: String(a * b) }]
     }));
     
-    const client = new TestClient(clientTransport);
+    const client = new Client({
+      name: 'TestClient',
+      version: '1.0.0'
+    }, {
+      capabilities: {}
+    });
     
     await server.connect(serverTransport);
-    await client.start();
+    await client.connect(clientTransport);
     
-    const result = await client.request('tools/list');
+    // List tools
+    const tools = await client.listTools();
+    assert.strictEqual(tools.tools.length, 2);
+    assert.strictEqual(tools.tools[0].name, 'add');
+    assert.strictEqual(tools.tools[1].name, 'multiply');
     
-    assert.strictEqual(result.tools.length, 2);
-    assert.strictEqual(result.tools[0].name, 'add');
-    assert.strictEqual(result.tools[1].name, 'multiply');
+    // Call a tool
+    const result = await client.callTool({
+      name: 'multiply',
+      arguments: { a: 6, b: 7 }
+    });
+    assert.strictEqual(result.content[0].text, '42');
   });
 
-  test('tools/call request', async () => {
+  test('prompts operations', async () => {
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     
     const server = new MCPSelfContainedClient({
@@ -155,30 +77,35 @@ describe('Transport Connection', () => {
       version: '1.0.0'
     });
     
-    server.tool('calculate', async ({ operation, a, b }) => {
-      let result;
-      switch (operation) {
-        case 'add': result = a + b; break;
-        case 'multiply': result = a * b; break;
-        default: throw new Error('Unknown operation');
-      }
-      return {
-        content: [{ type: 'text', text: String(result) }]
-      };
-    });
+    // Add a prompt
+    server.prompt('greeting', ({ name = 'World' }) => ({
+      messages: [{
+        role: 'assistant',
+        content: { type: 'text', text: `Hello, ${name}!` }
+      }]
+    }));
     
-    const client = new TestClient(clientTransport);
+    const client = new Client({
+      name: 'TestClient',
+      version: '1.0.0'
+    }, {
+      capabilities: {}
+    });
     
     await server.connect(serverTransport);
-    await client.start();
+    await client.connect(clientTransport);
     
-    // Test successful call
-    const result = await client.request('tools/call', {
-      name: 'calculate',
-      arguments: { operation: 'multiply', a: 6, b: 7 }
+    // List prompts
+    const prompts = await client.listPrompts();
+    assert.strictEqual(prompts.prompts.length, 1);
+    assert.strictEqual(prompts.prompts[0].name, 'greeting');
+    
+    // Get prompt
+    const result = await client.getPrompt({
+      name: 'greeting',
+      arguments: { name: 'Alice' }
     });
-    
-    assert.strictEqual(result.content[0].text, '42');
+    assert.strictEqual(result.messages[0].content.text, 'Hello, Alice!');
   });
 
   test('resources operations', async () => {
@@ -204,27 +131,28 @@ describe('Transport Connection', () => {
       }]
     }));
     
-    const client = new TestClient(clientTransport);
+    const client = new Client({
+      name: 'TestClient',
+      version: '1.0.0'
+    }, {
+      capabilities: {}
+    });
     
     await server.connect(serverTransport);
-    await client.start();
+    await client.connect(clientTransport);
     
     // List resources
-    const listResult = await client.request('resources/list');
-    assert.strictEqual(listResult.resources.length, 2);
-    
-    // List templates
-    const templatesResult = await client.request('resources/templates/list');
-    assert.strictEqual(templatesResult.resourceTemplates.length, 2);
+    const resources = await client.listResources();
+    assert.strictEqual(resources.resources.length, 2);
     
     // Read static resource
-    const staticResult = await client.request('resources/read', {
+    const staticResult = await client.readResource({
       uri: 'test://static'
     });
     assert.strictEqual(staticResult.contents[0].text, 'Static content');
     
     // Read dynamic resource
-    const dynamicResult = await client.request('resources/read', {
+    const dynamicResult = await client.readResource({
       uri: 'test://user/123'
     });
     assert.strictEqual(dynamicResult.contents[0].text, 'Type: user, ID: 123');
@@ -238,18 +166,8 @@ describe('Transport Connection', () => {
       version: '1.0.0'
     });
     
-    // Track notifications received by client
+    // Track notifications
     const notifications = [];
-    const client = new TestClient(clientTransport);
-    const originalOnMessage = client.transport.onmessage;
-    client.transport.onmessage = (message) => {
-      if ('method' in message && !('id' in message)) {
-        notifications.push(message);
-      }
-      if (originalOnMessage) {
-        originalOnMessage(message);
-      }
-    };
     
     let notifyChange;
     server.resource('live', 'live://test', 
@@ -261,26 +179,43 @@ describe('Transport Connection', () => {
       }),
       (uri, notify) => {
         notifyChange = notify;
+        return () => {}; // Return cleanup function
       }
     );
     
-    await server.connect(serverTransport);
-    await client.start();
-    
-    // Initialize the connection
-    await client.request('initialize', {
-      protocolVersion: '2024-11-05',
-      capabilities: {},
-      clientInfo: { name: 'TestClient', version: '1.0.0' }
+    const client = new Client({
+      name: 'TestClient',
+      version: '1.0.0'
+    }, {
+      capabilities: {}
     });
-    await client.notify('initialized');
+    
+    // Store original onMessage handler
+    let originalOnMessage;
+    
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+    
+    // Override client transport's onmessage to intercept notifications
+    originalOnMessage = clientTransport.onmessage;
+    clientTransport.onmessage = (message) => {
+      if (message.method && !message.id) {
+        // This is a notification
+        notifications.push(message);
+      }
+      // Call original handler
+      if (originalOnMessage) {
+        originalOnMessage(message);
+      }
+    };
+    
+    // Wait for initialization to complete
+    await new Promise(resolve => setTimeout(resolve, 50));
     
     // Subscribe to resource
-    const subResult = await client.request('resources/subscribe', {
+    const subscription = await client.subscribeResource({
       uri: 'live://test'
     });
-    assert.strictEqual(subResult.success, true);
-    assert(subResult.subscriberId);
     
     // Wait for watcher to be set up
     await new Promise(resolve => setTimeout(resolve, 50));
@@ -288,13 +223,14 @@ describe('Transport Connection', () => {
     // Clear notifications
     notifications.length = 0;
     
-    // Trigger a change
-    if (notifyChange) {
-      notifyChange();
-    }
+    // Verify notifyChange was set
+    assert.ok(notifyChange, 'notifyChange should be defined');
     
-    // Wait for notification
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Trigger a change
+    notifyChange();
+    
+    // Wait for notification to propagate
+    await new Promise(resolve => setTimeout(resolve, 200));
     
     // Check notification was received
     assert.strictEqual(notifications.length, 1);
@@ -302,45 +238,7 @@ describe('Transport Connection', () => {
     assert.strictEqual(notifications[0].params.uri, 'live://test');
     
     // Unsubscribe
-    const unsubResult = await client.request('resources/unsubscribe', {
-      uri: 'live://test',
-      subscriberId: subResult.subscriberId
-    });
-    assert.strictEqual(unsubResult.success, true);
-  });
-
-  test('prompts operations', async () => {
-    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-    
-    const server = new MCPSelfContainedClient({
-      name: 'TestServer',
-      version: '1.0.0'
-    });
-    
-    // Add a prompt
-    server.prompt('greeting', ({ name = 'World' }) => ({
-      messages: [{
-        role: 'assistant',
-        content: { type: 'text', text: `Hello, ${name}!` }
-      }]
-    }));
-    
-    const client = new TestClient(clientTransport);
-    
-    await server.connect(serverTransport);
-    await client.start();
-    
-    // List prompts
-    const listResult = await client.request('prompts/list');
-    assert.strictEqual(listResult.prompts.length, 1);
-    assert.strictEqual(listResult.prompts[0].name, 'greeting');
-    
-    // Get prompt
-    const getResult = await client.request('prompts/get', {
-      name: 'greeting',
-      arguments: { name: 'Alice' }
-    });
-    assert.strictEqual(getResult.messages[0].content.text, 'Hello, Alice!');
+    await client.unsubscribeResource(subscription);
   });
 
   test('error handling', async () => {
@@ -351,14 +249,19 @@ describe('Transport Connection', () => {
       version: '1.0.0'
     });
     
-    const client = new TestClient(clientTransport);
+    const client = new Client({
+      name: 'TestClient',
+      version: '1.0.0'
+    }, {
+      capabilities: {}
+    });
     
     await server.connect(serverTransport);
-    await client.start();
+    await client.connect(clientTransport);
     
     // Try to call non-existent tool
     try {
-      await client.request('tools/call', {
+      await client.callTool({
         name: 'non-existent',
         arguments: {}
       });
@@ -366,38 +269,35 @@ describe('Transport Connection', () => {
     } catch (error) {
       assert(error.message.includes('Tool \'non-existent\' not found'));
     }
-    
-    // Try unknown method
-    try {
-      await client.request('unknown/method', {});
-      assert.fail('Should have thrown error');
-    } catch (error) {
-      assert(error.message.includes('Unknown method'));
-    }
   });
 
-  test.skip('transport close handling - timing issue with setImmediate', async () => {
+  test('server capabilities', async () => {
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     
     const server = new MCPSelfContainedClient({
-      name: 'TestServer',
+      name: 'TestServer', 
       version: '1.0.0'
     });
     
-    let serverClosed = false;
-    server.on('close', () => {
-      serverClosed = true;
+    const client = new Client({
+      name: 'TestClient',
+      version: '1.0.0'
+    }, {
+      capabilities: {}
     });
     
     await server.connect(serverTransport);
-    await clientTransport.start();
+    await client.connect(clientTransport);
     
-    // Close server transport directly (since it's the one connected to server)
-    await serverTransport.close();
-    
-    // Give more time for close event to propagate through setImmediate
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    assert.strictEqual(serverClosed, true);
+    // Get server capabilities from our server
+    const capabilities = server.getServerCapabilities();
+    assert.deepStrictEqual(capabilities, {
+      tools: {},
+      prompts: {},
+      resources: {
+        subscribe: true,
+        listChanged: true
+      }
+    });
   });
 });

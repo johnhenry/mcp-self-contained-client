@@ -419,6 +419,7 @@ export class MCPSelfContainedClient extends EventEmitter {
       /** @type {Tool} */
       const tool = {
         name: t.name,
+        inputSchema: { type: "object" } // Default empty object schema
       };
       if (t.description) tool.description = t.description;
       if (t.schema) {
@@ -646,11 +647,9 @@ export class MCPSelfContainedClient extends EventEmitter {
   /**
    * Subscribe to resource changes
    * @param {{ uri: string }} params - Resource URI to subscribe to
-   * @returns {Promise<ResourceSubscriptionResult>}
+   * @returns {Promise<{}>}
    */
   async subscribeToResource({ uri }) {
-    const subscriberId = `sub_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-    
     if (!this.resourceSubscriptions.has(uri)) {
       this.resourceSubscriptions.set(uri, new Set());
       
@@ -665,37 +664,37 @@ export class MCPSelfContainedClient extends EventEmitter {
       }
     }
     
-    this.resourceSubscriptions.get(uri).add(subscriberId);
+    // Add a generic subscriber
+    this.resourceSubscriptions.get(uri).add('client');
     
-    return { success: true, subscriberId };
+    // Return subscription object that includes the URI
+    return { _meta: { uri } };
   }
 
   /**
    * Unsubscribe from resource changes
-   * @param {{ uri: string, subscriberId?: string }} params
-   * @returns {Promise<ResourceSubscriptionResult>}
+   * @param {{ uri?: string, _meta?: { uri?: string } } | { uri: string }} params
+   * @returns {Promise<{}>}
    */
-  async unsubscribeFromResource({ uri, subscriberId }) {
+  async unsubscribeFromResource(params) {
+    // Handle both direct URI and _meta.uri formats
+    const uri = params.uri || params._meta?.uri;
+    if (!uri) return {};
+    
     const subscribers = this.resourceSubscriptions.get(uri);
-    if (!subscribers) return { success: false };
+    if (!subscribers) return {};
     
-    if (subscriberId) {
-      subscribers.delete(subscriberId);
-    } else {
-      subscribers.clear();
+    // Remove all subscribers for this URI
+    this.resourceSubscriptions.delete(uri);
+    
+    // Stop watching
+    const cleanup = this.activeWatchers.get(uri);
+    if (cleanup) {
+      cleanup();
+      this.activeWatchers.delete(uri);
     }
     
-    // If no more subscribers, stop watching
-    if (subscribers.size === 0) {
-      this.resourceSubscriptions.delete(uri);
-      const cleanup = this.activeWatchers.get(uri);
-      if (cleanup) {
-        cleanup();
-        this.activeWatchers.delete(uri);
-      }
-    }
-    
-    return { success: true };
+    return {};
   }
 
   /**
@@ -1041,8 +1040,8 @@ export class MCPSelfContainedClient extends EventEmitter {
     // Emit local event
     this.emit('notification', notification);
     
-    // Send via transport if connected
-    if (this.transport && this._initialized) {
+    // Send via transport if connected (removed _initialized check for notifications)
+    if (this.transport) {
       this._sendNotification(notification.method, notification.params);
     }
   }
@@ -1060,12 +1059,10 @@ export class MCPSelfContainedClient extends EventEmitter {
     // Emit local event
     this.emit('notification', notification);
     
-    // Send via transport if connected
-    if (this.transport && this._initialized) {
+    // Send via transport if connected (removed _initialized check for notifications)
+    if (this.transport) {
       this._sendNotification(notification.method, notification.params);
     }
   }
 }
 
-// Export InMemoryTransport
-export { InMemoryTransport } from './InMemoryTransport.mjs';

@@ -600,7 +600,8 @@ This is ideal for:
 The client can now act as an MCP server by connecting to a transport:
 
 ```js
-import { MCPSelfContainedClient, InMemoryTransport } from "./index.mjs";
+import { MCPSelfContainedClient } from "./index.mjs";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 // Create server
 const server = new MCPSelfContainedClient({
@@ -624,7 +625,7 @@ The client supports the full MCP protocol including:
 - Resource subscriptions with notifications
 - Error handling and transport lifecycle
 
-See `demo/transport-demo.mjs` for a complete example using in-memory transport.
+See `demo/transport-demo.mjs` for a complete example using the SDK's InMemoryTransport for testing.
 
 ## 🧩 Future Ideas
 

@@ -2,66 +2,12 @@
 
 /**
  * Demo showing how to use MCPSelfContainedClient with transports
- * This simulates a client-server architecture using in-memory transport
+ * This demonstrates using the SDK's Client to connect to our server
  */
 
-import { MCPSelfContainedClient, InMemoryTransport } from '../index.mjs';
-
-// Create a simple MCP client for testing
-class SimpleMCPClient {
-  constructor(transport) {
-    this.transport = transport;
-    this.responses = new Map();
-    this._requestId = 0;
-    
-    // Handle incoming messages
-    transport.onmessage = (message) => {
-      if ('id' in message && (message.result !== undefined || message.error !== undefined)) {
-        // This is a response to our request
-        const pending = this.responses.get(message.id);
-        if (pending) {
-          this.responses.delete(message.id);
-          if (message.result !== undefined) {
-            pending.resolve(message.result);
-          } else {
-            pending.reject(new Error(message.error.message));
-          }
-        }
-      } else if ('method' in message && !('id' in message)) {
-        // This is a notification
-        console.log(`📡 Notification: ${message.method}`, message.params);
-      }
-    };
-  }
-
-  async start() {
-    await this.transport.start();
-  }
-
-  async request(method, params) {
-    const id = ++this._requestId;
-    const promise = new Promise((resolve, reject) => {
-      this.responses.set(id, { resolve, reject });
-    });
-
-    await this.transport.send({
-      jsonrpc: '2.0',
-      method,
-      params,
-      id
-    });
-
-    return promise;
-  }
-
-  async notify(method, params) {
-    await this.transport.send({
-      jsonrpc: '2.0',
-      method,
-      params
-    });
-  }
-}
+import { MCPSelfContainedClient } from '../index.mjs';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 
 async function main() {
   console.log('🚀 MCP Transport Demo\n');
@@ -153,43 +99,38 @@ async function main() {
     }
   );
 
-  // Create the client
-  const client = new SimpleMCPClient(clientTransport);
+  // Create the SDK client
+  const client = new Client({
+    name: 'DemoClient',
+    version: '1.0.0'
+  }, {
+    capabilities: {}
+  });
+
+  // Set up notification listener
+  client.onNotification = (notification) => {
+    console.log(`📡 Notification: ${notification.method}`, notification.params);
+  };
 
   // Connect both sides
   await server.connect(serverTransport);
-  await client.start();
+  await client.connect(clientTransport);
 
   console.log('🔌 Connected client and server via in-memory transport\n');
 
-  // Initialize the connection
-  console.log('📤 Sending initialize request...');
-  const initResult = await client.request('initialize', {
-    protocolVersion: '2024-11-05',
-    capabilities: {},
-    clientInfo: {
-      name: 'DemoClient',
-      version: '1.0.0'
-    }
-  });
-  
-  console.log('📥 Server info:', initResult.serverInfo);
-  console.log('📥 Server capabilities:', initResult.capabilities);
-  
-  // Complete initialization
-  await client.notify('initialized');
+  // The SDK client handles initialization automatically
   console.log('✅ Initialization complete\n');
 
   // List available tools
   console.log('🔧 Available tools:');
-  const tools = await client.request('tools/list');
+  const tools = await client.listTools();
   tools.tools.forEach(tool => {
     console.log(`  - ${tool.name}${tool.description ? `: ${tool.description}` : ''}`);
   });
 
   // Call a tool
   console.log('\n📌 Calling greet tool...');
-  const greetResult = await client.request('tools/call', {
+  const greetResult = await client.callTool({
     name: 'greet',
     arguments: { name: 'Alice' }
   });
@@ -197,7 +138,7 @@ async function main() {
 
   // Call calculate tool
   console.log('\n📌 Calling calculate tool...');
-  const calcResult = await client.request('tools/call', {
+  const calcResult = await client.callTool({
     name: 'calculate',
     arguments: { expression: '6 * 7' }
   });
@@ -205,14 +146,14 @@ async function main() {
 
   // List prompts
   console.log('\n💭 Available prompts:');
-  const prompts = await client.request('prompts/list');
+  const prompts = await client.listPrompts();
   prompts.prompts.forEach(prompt => {
     console.log(`  - ${prompt.name}${prompt.description ? `: ${prompt.description}` : ''}`);
   });
 
   // Get a prompt
   console.log('\n📌 Getting story-starter prompt...');
-  const promptResult = await client.request('prompts/get', {
+  const promptResult = await client.getPrompt({
     name: 'story-starter',
     arguments: { genre: 'science fiction' }
   });
@@ -220,27 +161,26 @@ async function main() {
 
   // List resources
   console.log('\n📂 Available resources:');
-  const resources = await client.request('resources/list');
+  const resources = await client.listResources();
   resources.resources.forEach(resource => {
     console.log(`  - ${resource.name}: ${resource.uri}`);
   });
 
   // Read a resource
   console.log('\n📌 Reading config resource...');
-  const configResult = await client.request('resources/read', {
+  const configResult = await client.readResource({
     uri: 'config://app'
   });
   console.log('Config:', configResult.contents[0].text);
 
   // Subscribe to status resource
   console.log('\n📡 Subscribing to status resource...');
-  const subscription = await client.request('resources/subscribe', {
+  const subscription = await client.subscribeResource({
     uri: 'status://server'
   });
-  console.log(`Subscribed with ID: ${subscription.subscriberId}`);
 
   // Read initial status
-  const statusResult = await client.request('resources/read', {
+  const statusResult = await client.readResource({
     uri: 'status://server'
   });
   console.log('Initial status:', statusResult.contents[0].text);
@@ -250,20 +190,17 @@ async function main() {
   await new Promise(resolve => setTimeout(resolve, 10000));
 
   // Read updated status
-  const updatedStatus = await client.request('resources/read', {
+  const updatedStatus = await client.readResource({
     uri: 'status://server'
   });
   console.log('\nUpdated status:', updatedStatus.contents[0].text);
 
   // Unsubscribe
-  await client.request('resources/unsubscribe', {
-    uri: 'status://server',
-    subscriberId: subscription.subscriberId
-  });
+  await client.unsubscribeResource(subscription);
   console.log('\n✅ Unsubscribed from status resource');
 
   // Close transports
-  await clientTransport.close();
+  await client.close();
   console.log('\n👋 Demo completed!');
   process.exit(0);
 }

@@ -30,9 +30,8 @@ describe("Resource Subscriptions", () => {
     );
 
     const result = await client.subscribeToResource({ uri: "test://123" });
-    assert.equal(result.success, true);
-    assert.ok(result.subscriberId);
-    assert.ok(result.subscriberId.startsWith("sub_"));
+    assert.ok(result);
+    assert.equal(result._meta?.uri, "test://123");
 
     client.cleanup();
   });
@@ -52,7 +51,7 @@ describe("Resource Subscriptions", () => {
     );
 
     // Subscribe
-    const { subscriberId } = await client.subscribeToResource({ uri: "test://123" });
+    const subscription = await client.subscribeToResource({ uri: "test://123" });
     
     // Verify subscription exists
     let subscriptions = await client.listResourceSubscriptions();
@@ -61,11 +60,8 @@ describe("Resource Subscriptions", () => {
     assert.equal(subscriptions.subscriptions[0].subscriberCount, 1);
 
     // Unsubscribe
-    const result = await client.unsubscribeFromResource({ 
-      uri: "test://123", 
-      subscriberId 
-    });
-    assert.equal(result.success, true);
+    const result = await client.unsubscribeFromResource(subscription);
+    assert.deepEqual(result, {});
 
     // Verify subscription removed
     subscriptions = await client.listResourceSubscriptions();
@@ -94,16 +90,13 @@ describe("Resource Subscriptions", () => {
     
     const subscriptions = await client.listResourceSubscriptions();
     assert.equal(subscriptions.subscriptions.length, 1);
-    assert.equal(subscriptions.subscriptions[0].subscriberCount, 2);
-
-    // Remove one subscriber
-    await client.unsubscribeFromResource({ 
-      uri: "test://123", 
-      subscriberId: sub1.subscriberId 
-    });
+    assert.equal(subscriptions.subscriptions[0].subscriberCount, 1); // SDK model: one client subscription
+    
+    // Since SDK manages subscriptions per URI, unsubscribing removes all
+    await client.unsubscribeFromResource(sub1);
     
     const remaining = await client.listResourceSubscriptions();
-    assert.equal(remaining.subscriptions[0].subscriberCount, 1);
+    assert.equal(remaining.subscriptions.length, 0);
 
     client.cleanup();
   });
@@ -251,7 +244,8 @@ describe("Resource Subscriptions", () => {
 
     // Subscribe should still work
     const result = await client.subscribeToResource({ uri: "simple://123" });
-    assert.equal(result.success, true);
+    assert.ok(result);
+    assert.equal(result._meta?.uri, "simple://123");
     assert.equal(watcherCalled, true);
 
     client.cleanup();
@@ -267,7 +261,8 @@ describe("Resource Subscriptions", () => {
     const result = await client.subscribeToResource({ uri: "nonexistent://123" });
     
     // Should still succeed (subscription tracks URI, not resource existence)
-    assert.equal(result.success, true);
+    assert.ok(result);
+    assert.equal(result._meta?.uri, "nonexistent://123");
 
     const subscriptions = await client.listResourceSubscriptions();
     assert.equal(subscriptions.subscriptions.length, 1);
@@ -283,7 +278,8 @@ describe("Resource Subscriptions", () => {
     });
 
     const result = await client.unsubscribeFromResource({ uri: "nonexistent://123" });
-    assert.equal(result.success, false);
+    // SDK returns empty object for unsubscribe
+    assert.deepEqual(result, {});
 
     client.cleanup();
   });
