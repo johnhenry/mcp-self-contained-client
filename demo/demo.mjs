@@ -306,12 +306,12 @@ try {
   console.log("─".repeat(50));
 
   // Add namespaced tools
-  client.tool("math:sqrt", z.object({ n: z.number() }), async ({ n }) => ({
+  client.tool("math__sqrt", z.object({ n: z.number() }), async ({ n }) => ({
     content: [{ type: "text", text: `√${n} = ${Math.sqrt(n)}` }],
   }));
 
   client.tool(
-    "math:pow",
+    "math__pow",
     z.object({ base: z.number(), exp: z.number() }),
     async ({ base, exp }) => ({
       content: [
@@ -320,19 +320,19 @@ try {
     })
   );
 
-  console.log("Added math:sqrt and math:pow tools");
+  console.log("Added math__sqrt and math__pow tools");
 
   displayResult(
     "Square root of 16",
-    await client.callTool({ name: "math:sqrt", arguments: { n: 16 } })
+    await client.callTool({ name: "math__sqrt", arguments: { n: 16 } })
   );
 
   // Delete namespace
   client.deleteNamespace("math");
-  console.log("\nDeleted math: namespace");
+  console.log("\nDeleted math__ namespace");
 
   try {
-    await client.callTool({ name: "math:sqrt", arguments: { n: 25 } });
+    await client.callTool({ name: "math__sqrt", arguments: { n: 25 } });
   } catch (error) {
     console.log("✅ Expected error:", error.message);
   }

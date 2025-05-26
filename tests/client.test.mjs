@@ -410,12 +410,12 @@ describe("MCPSelfContainedClient", () => {
       });
 
       // Add various entries
-      client.tool("math:add", () => ({ content: [] }));
-      client.tool("math:subtract", () => ({ content: [] }));
-      client.tool("string:concat", () => ({ content: [] }));
+      client.tool("math__add", () => ({ content: [] }));
+      client.tool("math__subtract", () => ({ content: [] }));
+      client.tool("string__concat", () => ({ content: [] }));
 
-      client.prompt("math:formula", () => ({ messages: [] }));
-      client.prompt("string:template", () => ({ messages: [] }));
+      client.prompt("math__formula", () => ({ messages: [] }));
+      client.prompt("string__template", () => ({ messages: [] }));
 
       // Verify all exist
       let { tools } = await client.listTools();
@@ -430,9 +430,9 @@ describe("MCPSelfContainedClient", () => {
       ({ tools } = await client.listTools());
       ({ prompts } = await client.listPrompts());
       assert.equal(tools.length, 1);
-      assert.equal(tools[0].name, "string:concat");
+      assert.equal(tools[0].name, "string__concat");
       assert.equal(prompts.length, 1);
-      assert.equal(prompts[0].name, "string:template");
+      assert.equal(prompts[0].name, "string__template");
     });
 
     test("delete namespace with no matches does nothing", async () => {

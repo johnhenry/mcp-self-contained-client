@@ -461,11 +461,11 @@ Organize tools, prompts, and resources using namespaces:
 
 ```js
 // Register namespaced items
-client.tool("math:add", async ({ a, b }) => ({
+client.tool("math__add", async ({ a, b }) => ({
   content: [{ type: "text", text: `${a + b}` }],
 }));
 
-client.tool("math:multiply", async ({ a, b }) => ({
+client.tool("math__multiply", async ({ a, b }) => ({
   content: [{ type: "text", text: `${a * b}` }],
 }));
 
@@ -474,7 +474,7 @@ client.tool("string:reverse", async ({ text }) => ({
 }));
 
 // Delete entire namespace
-client.deleteNamespace("math"); // Removes math:add and math:multiply
+client.deleteNamespace("math"); // Removes math__add and math__multiply
 ```
 
 #### Server Capabilities

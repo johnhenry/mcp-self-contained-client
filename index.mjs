@@ -618,12 +618,12 @@ export class MCPSelfContainedClient extends EventEmitter {
 
   /**
    * Delete all entries in a namespace
-   * @param {string} prefix - Namespace prefix (e.g., "math" for "math:*")
+   * @param {string} prefix - Namespace prefix (e.g., "math" for "math__*")
    */
   deleteNamespace(prefix) {
     for (const map of [this.tools, this.resources, this.prompts]) {
       for (const key of map.keys()) {
-        if (key.startsWith(prefix + ":")) {
+        if (key.startsWith(prefix + "__")) {
           map.delete(key);
         }
       }
