@@ -286,6 +286,9 @@ export declare class MCPSelfContainedClient {
   on(event: 'notification', listener: (notification: ResourceNotification) => void): this;
   emit(event: 'notification', notification: ResourceNotification): boolean;
   removeAllListeners(): this;
+
+  // Transport methods
+  connect(transport: Transport): Promise<void>;
 }
 
 // Resource subscription types
@@ -303,5 +306,81 @@ export type ResourceNotification = {
   method: 'notifications/resources/updated' | 'notifications/resources/list_changed';
   params: {
     uri?: string;
+  };
+};
+
+// JSON-RPC types
+export type JSONRPCRequest = {
+  jsonrpc: "2.0";
+  method: string;
+  params?: any;
+  id: string | number;
+};
+
+export type JSONRPCNotification = {
+  jsonrpc: "2.0";
+  method: string;
+  params?: any;
+};
+
+export type JSONRPCResponse = {
+  jsonrpc: "2.0";
+  result: any;
+  id: string | number;
+};
+
+export type JSONRPCError = {
+  jsonrpc: "2.0";
+  error: {
+    code: number;
+    message: string;
+    data?: any;
+  };
+  id: string | number | null;
+};
+
+export type JSONRPCMessage = 
+  | JSONRPCRequest
+  | JSONRPCNotification
+  | JSONRPCResponse
+  | JSONRPCError;
+
+// Transport interface
+export interface Transport {
+  send(message: JSONRPCMessage): Promise<void>;
+  start(): Promise<void>;
+  close(): Promise<void>;
+  onmessage?: (message: JSONRPCMessage) => void;
+  onerror?: (error: Error) => void;
+  onclose?: () => void;
+}
+
+// MCP protocol types
+export type InitializeRequest = JSONRPCRequest & {
+  method: "initialize";
+  params: {
+    protocolVersion: string;
+    capabilities: {
+      tools?: {};
+      prompts?: {};
+      resources?: { subscribe?: boolean; listChanged?: boolean };
+    };
+    clientInfo: {
+      name: string;
+      version: string;
+    };
+  };
+};
+
+export type InitializeResult = {
+  protocolVersion: string;
+  capabilities: {
+    tools?: {};
+    prompts?: {};
+    resources?: { subscribe?: boolean; listChanged?: boolean };
+  };
+  serverInfo: {
+    name: string;
+    version: string;
   };
 };

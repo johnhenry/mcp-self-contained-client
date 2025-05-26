@@ -7,6 +7,8 @@ This client fully implements the MCP contract from the client's perspective, ena
 - 🔧 Tool execution with argument validation and error handling
 - 💬 Prompt generation with structured messages
 - 🗂️ Resource management with URI template matching
+- 📡 Resource subscriptions with real-time notifications
+- 🔌 Transport support for client-server communication
 - ✅ Full TypeScript support with JSDoc annotations
 - 🔍 Introspection capabilities for all registered items
 
@@ -355,6 +357,51 @@ const result = await client.readResource({
 // result: { contents: [{ uri: "file://readme.txt", text: "Contents of readme.txt" }] }
 ```
 
+#### Resource Subscriptions
+
+Resources can have watchers that monitor changes and notify subscribers:
+
+```js
+// Register a resource with a watcher
+let temperature = 20;
+client.resource(
+  "temperature",
+  "sensor://temperature",
+  async () => ({
+    contents: [{
+      uri: "sensor://temperature",
+      mimeType: "application/json",
+      text: JSON.stringify({ value: temperature, unit: "celsius" })
+    }]
+  }),
+  // Watcher function
+  (uri, notifyChange) => {
+    const interval = setInterval(() => {
+      temperature += (Math.random() - 0.5) * 2; // Simulate temperature changes
+      notifyChange(); // Notify subscribers of the change
+    }, 1000);
+    
+    // Return cleanup function
+    return () => clearInterval(interval);
+  }
+);
+
+// Subscribe to resource changes
+const { subscriberId } = await client.subscribeToResource({ 
+  uri: "sensor://temperature" 
+});
+
+// Listen for notifications
+client.on('notification', (notification) => {
+  if (notification.method === 'notifications/resources/updated') {
+    console.log(`Resource updated: ${notification.params.uri}`);
+  }
+});
+
+// Unsubscribe when done
+await client.unsubscribeFromResource({ uri: "sensor://temperature", subscriberId });
+```
+
 #### List Resources and Templates
 
 ```js
@@ -439,7 +486,7 @@ const capabilities = client.getServerCapabilities();
 // {
 //   tools: {},
 //   prompts: {},
-//   resources: { subscribe: false }
+//   resources: { subscribe: true, listChanged: true }
 // }
 ```
 
@@ -548,9 +595,39 @@ This is ideal for:
 
 ---
 
+## 🔌 Transport Support
+
+The client can now act as an MCP server by connecting to a transport:
+
+```js
+import { MCPSelfContainedClient, InMemoryTransport } from "./index.mjs";
+
+// Create server
+const server = new MCPSelfContainedClient({
+  name: "my-server",
+  version: "1.0.0"
+});
+
+// Add capabilities
+server.tool("greet", async ({ name }) => ({
+  content: [{ type: "text", text: `Hello, ${name}!` }]
+}));
+
+// Connect to transport
+const transport = new StdioServerTransport();
+await server.connect(transport);
+```
+
+The client supports the full MCP protocol including:
+- Initialize/initialized handshake
+- Tool, prompt, and resource operations
+- Resource subscriptions with notifications
+- Error handling and transport lifecycle
+
+See `demo/transport-demo.mjs` for a complete example using in-memory transport.
+
 ## 🧩 Future Ideas
 
-- Add support for resource subscriptions
 - Implement request/response logging
 - Add middleware support for cross-cutting concerns
 - Support for custom content types beyond text/image

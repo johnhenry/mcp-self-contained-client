@@ -375,20 +375,23 @@ export class MCPSelfContainedClient extends EventEmitter {
     // Handle different argument patterns
     let actualHandler = handler;
     let actualWatcher = watcher;
+    let actualOptions = optionsOrSchemaOrHandler;
     
-    // If handler is undefined, it means watcher was passed as the 4th argument
-    if (!handler && typeof optionsOrSchemaOrHandler === 'function') {
+    // Determine the pattern based on argument types
+    if (typeof optionsOrSchemaOrHandler === 'function' && typeof handler === 'function' && !watcher) {
       // Pattern: resource(name, template, handler, watcher)
       actualHandler = optionsOrSchemaOrHandler;
-      actualWatcher = handler; // This is actually the watcher
-      optionsOrSchemaOrHandler = undefined;
-    } else if (typeof handler === 'function' && !watcher) {
-      // Pattern: resource(name, template, options, handler) - no watcher
-      actualHandler = handler;
+      actualWatcher = handler;
+      actualOptions = undefined;
+    } else if (typeof optionsOrSchemaOrHandler === 'function' && !handler) {
+      // Pattern: resource(name, template, handler)
+      actualHandler = optionsOrSchemaOrHandler;
       actualWatcher = undefined;
+      actualOptions = undefined;
     }
+    // Otherwise it's: resource(name, template, options, handler, [watcher])
     
-    const entry = normalizeEntry(name, optionsOrSchemaOrHandler, actualHandler);
+    const entry = normalizeEntry(name, actualOptions, actualHandler);
     // Convert string patterns to ResourceTemplate instances
     entry.uriTemplate =
       typeof uriTemplate === "string"
@@ -777,4 +780,292 @@ export class MCPSelfContainedClient extends EventEmitter {
     this.resourceSubscriptions.clear();
     this.removeAllListeners();
   }
+
+  /**
+   * Connect to a transport for MCP protocol communication
+   * @param {import('./types').Transport} transport - The transport to connect to
+   * @returns {Promise<void>}
+   */
+  async connect(transport) {
+    this.transport = transport;
+    this._requestId = 0;
+    this._pendingRequests = new Map();
+    this._initialized = false;
+
+    // Set up transport callbacks
+    transport.onmessage = (message) => this._handleMessage(message);
+    transport.onerror = (error) => this._handleError(error);
+    transport.onclose = () => this._handleClose();
+
+    // Start the transport
+    await transport.start();
+
+    // The server waits for client to send initialize request
+    // We don't send anything here - we just wait for incoming messages
+  }
+
+  /**
+   * Handle incoming JSON-RPC messages
+   * @private
+   * @param {import('./types').JSONRPCMessage} message
+   */
+  async _handleMessage(message) {
+    try {
+      if ('method' in message && 'id' in message) {
+        // This is a request
+        await this._handleRequest(message);
+      } else if ('method' in message && !('id' in message)) {
+        // This is a notification
+        await this._handleNotification(message);
+      } else if ('result' in message || 'error' in message) {
+        // This is a response to our request
+        this._handleResponse(message);
+      }
+    } catch (error) {
+      console.error('Error handling message:', error);
+    }
+  }
+
+  /**
+   * Handle JSON-RPC requests from client
+   * @private
+   * @param {import('./types').JSONRPCRequest} request
+   */
+  async _handleRequest(request) {
+    try {
+      let result;
+      
+      switch (request.method) {
+        case 'initialize':
+          result = await this._handleInitialize(request.params);
+          break;
+        
+        case 'tools/list':
+          result = await this.listTools();
+          break;
+        
+        case 'tools/call':
+          result = await this.callTool(request.params);
+          break;
+        
+        case 'prompts/list':
+          result = await this.listPrompts();
+          break;
+        
+        case 'prompts/get':
+          result = await this.getPrompt(request.params);
+          break;
+        
+        case 'resources/list':
+          result = await this.listResources();
+          break;
+        
+        case 'resources/templates/list':
+          result = await this.listResourceTemplates();
+          break;
+        
+        case 'resources/read':
+          result = await this.readResource(request.params);
+          break;
+        
+        case 'resources/subscribe':
+          result = await this.subscribeToResource(request.params);
+          break;
+        
+        case 'resources/unsubscribe':
+          result = await this.unsubscribeFromResource(request.params);
+          break;
+        
+        default:
+          throw new Error(`Unknown method: ${request.method}`);
+      }
+
+      // Send response
+      await this._sendResponse(request.id, result);
+    } catch (error) {
+      // Send error response
+      await this._sendError(request.id, -32603, error.message, error);
+    }
+  }
+
+  /**
+   * Handle JSON-RPC notifications from client
+   * @private
+   * @param {import('./types').JSONRPCNotification} notification
+   */
+  async _handleNotification(notification) {
+    switch (notification.method) {
+      case 'initialized':
+        this._initialized = true;
+        break;
+      case 'cancelled':
+        // Handle request cancellation if needed
+        break;
+    }
+  }
+
+  /**
+   * Handle JSON-RPC responses from server
+   * @private
+   * @param {import('./types').JSONRPCResponse | import('./types').JSONRPCError} response
+   */
+  _handleResponse(response) {
+    const pending = this._pendingRequests.get(response.id);
+    if (pending) {
+      this._pendingRequests.delete(response.id);
+      if ('result' in response) {
+        pending.resolve(response.result);
+      } else {
+        pending.reject(new Error(response.error.message));
+      }
+    }
+  }
+
+  /**
+   * Handle transport errors
+   * @private
+   * @param {Error} error
+   */
+  _handleError(error) {
+    console.error('Transport error:', error);
+    this.emit('error', error);
+  }
+
+  /**
+   * Handle transport close
+   * @private
+   */
+  _handleClose() {
+    // Reject all pending requests
+    for (const pending of this._pendingRequests.values()) {
+      pending.reject(new Error('Transport closed'));
+    }
+    this._pendingRequests.clear();
+    this.cleanup();
+    this.emit('close');
+  }
+
+  /**
+   * Handle initialize request
+   * @private
+   * @param {any} params
+   * @returns {Promise<import('./types').InitializeResult>}
+   */
+  async _handleInitialize(params) {
+    // Validate protocol version
+    const clientVersion = params.protocolVersion;
+    const supportedVersion = "2024-11-05"; // Current MCP protocol version
+    
+    // For now, we'll accept any version and return our supported version
+    return {
+      protocolVersion: supportedVersion,
+      capabilities: this.getServerCapabilities(),
+      serverInfo: {
+        name: this.name,
+        version: this.version
+      }
+    };
+  }
+
+  /**
+   * Send a JSON-RPC response
+   * @private
+   * @param {string | number} id
+   * @param {any} result
+   */
+  async _sendResponse(id, result) {
+    if (!this.transport) return;
+    
+    const response = {
+      jsonrpc: "2.0",
+      id,
+      result
+    };
+    
+    await this.transport.send(response);
+  }
+
+  /**
+   * Send a JSON-RPC error response
+   * @private
+   * @param {string | number} id
+   * @param {number} code
+   * @param {string} message
+   * @param {any} [data]
+   */
+  async _sendError(id, code, message, data) {
+    if (!this.transport) return;
+    
+    const response = {
+      jsonrpc: "2.0",
+      id,
+      error: {
+        code,
+        message,
+        data
+      }
+    };
+    
+    await this.transport.send(response);
+  }
+
+  /**
+   * Send a JSON-RPC notification
+   * @private
+   * @param {string} method
+   * @param {any} [params]
+   */
+  async _sendNotification(method, params) {
+    if (!this.transport) return;
+    
+    const notification = {
+      jsonrpc: "2.0",
+      method,
+      params
+    };
+    
+    await this.transport.send(notification);
+  }
+
+  /**
+   * Override notification method to also send via transport
+   * @private
+   * @param {string} uri
+   */
+  _notifyResourceUpdated(uri) {
+    const notification = {
+      method: 'notifications/resources/updated',
+      params: { uri }
+    };
+    
+    // Emit local event
+    this.emit('notification', notification);
+    
+    // Send via transport if connected
+    if (this.transport && this._initialized) {
+      this._sendNotification(notification.method, notification.params);
+    }
+  }
+
+  /**
+   * Override notification method to also send via transport
+   * @private
+   */
+  _notifyResourceListChanged() {
+    const notification = {
+      method: 'notifications/resources/list_changed',
+      params: {}
+    };
+    
+    // Emit local event
+    this.emit('notification', notification);
+    
+    // Send via transport if connected
+    if (this.transport && this._initialized) {
+      this._sendNotification(notification.method, notification.params);
+    }
+  }
 }
+
+// Export InMemoryTransport
+export { InMemoryTransport } from './InMemoryTransport.mjs';
