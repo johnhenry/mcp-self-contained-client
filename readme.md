@@ -1,5 +1,7 @@
 # MCPSelfContainedClient
 
+> Previously published on npm as `mcp-self-contained-client` (unscoped). That name is no longer updated; use `@johnhenry/mcp-self-contained-client`.
+
 A dynamic, in-memory implementation of a Model Context Protocol (MCP) client that allows you to define and manage tools, prompts, and resources locally—without connecting to an external server.
 
 This client fully implements the MCP contract from the client's perspective, enabling:
@@ -26,7 +28,11 @@ This client fully implements the MCP contract from the client's perspective, ena
 
 ## 📦 Installation
 
-This module is self-contained. Just copy `index.mjs` and `types.d.ts` into your project.
+```bash
+npm install @johnhenry/mcp-self-contained-client
+```
+
+The module is also self-contained: you can instead copy `index.mjs` and `types.d.ts` into your project.
 
 If you're using Zod for validation:
 

@@ -1,26 +1,37 @@
 {
-  "name": "mcp-self-contained-client",
-  "version": "0.0.0",
+  "name": "@johnhenry/mcp-self-contained-client",
+  "version": "0.1.0",
   "description": "A dynamic, in-memory implementation of a Model Context Protocol (MCP) client/server with support for tools, prompts, resources, subscriptions, and transport connections.",
+  "type": "module",
   "main": "index.mjs",
   "types": "types.d.ts",
+  "files": [
+    "index.mjs",
+    "types.d.ts"
+  ],
   "scripts": {
     "test": "node --test tests/**/*.test.mjs",
     "demo": "node demo/demo.mjs",
     "demo:transport": "node demo/transport-demo.mjs"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
+  "author": "John Henry <john@iamjohnhenry.com>",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
     "zod": "^3.25.28"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/johnhenry/mcp-self-contained-client"
+    "url": "git+https://github.com/johnhenry/mcp-self-contained-client.git"
   },
+  "homepage": "https://github.com/johnhenry/mcp-self-contained-client#readme",
   "bugs": {
     "url": "https://github.com/johnhenry/mcp-self-contained-client/issues"
   }
